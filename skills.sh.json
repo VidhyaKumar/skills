@@ -1,0 +1,15 @@
+{
+  "$schema": "https://skills.sh/schemas/skills.sh.schema.json",
+  "notGrouped": "bottom",
+  "groupings": [
+    {
+      "title": "Git",
+      "description": "Skills for committing and reviewing working tree changes.",
+      "skills": [
+        "commit-all",
+        "commit-staged",
+        "review-changes"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+interface:
+  display_name: "Commit All"
+  short_description: "Group current changes into atomic commits"
+  default_prompt: "Use $commit-all to group all current changes into logical atomic commits."
+policy:
+  allow_implicit_invocation: false

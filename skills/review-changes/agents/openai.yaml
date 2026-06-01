@@ -1,0 +1,6 @@
+interface:
+  display_name: "Review Changes"
+  short_description: "Review staged, unstaged, and untracked changes"
+  default_prompt: "Use $review-changes to review my current staged, unstaged, and untracked changes."
+policy:
+  allow_implicit_invocation: false
