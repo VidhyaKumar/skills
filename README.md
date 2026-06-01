@@ -1,4 +1,4 @@
-# skills
+# VK Skills
 
 [![skills.sh](https://skills.sh/b/VidhyaKumar/skills)](https://skills.sh/VidhyaKumar/skills)
 
