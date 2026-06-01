@@ -13,7 +13,7 @@ Use this skill only when the user explicitly wants the already staged changes co
 1. Inspect staged changes with `git diff --cached`.
 2. Confirm there is at least one staged change. If not, say so and stop.
 3. Use recent commits on the current branch as style reference.
-4. Draft a Conventional Commit message that matches the staged diff only.
+4. Compose the commit message (see Commit message below), matching the staged diff only.
 5. Execute the commit without staging or modifying additional files.
 
 ## Constraints
@@ -22,7 +22,9 @@ Use this skill only when the user explicitly wants the already staged changes co
 - Never widen the commit scope beyond what is already staged.
 - If the staged set mixes unrelated work, call that out before committing.
 
-## Commit message format
+## Commit message
+
+Before composing the commit message, check if a `caveman-commit` skill is available. If it is, invoke it and use the message it produces as-is — its format overrides everything below. The format below applies only when `caveman-commit` is unavailable.
 
 ```text
 <type>(<scope>): <description>

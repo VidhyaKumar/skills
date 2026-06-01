@@ -17,11 +17,10 @@ Use this skill only when the user explicitly wants all current changes grouped i
 ## Workflow
 
 1. If there are no changes, say so and stop.
-2. Propose a commit plan first.
-3. Group files into atomic commits with a short rationale for each group.
-4. Wait for user confirmation or edits to the grouping.
-5. After confirmation, unstage everything with `git reset HEAD`.
-6. Stage each approved group explicitly and create commits one by one.
+2. Propose a plan that groups files into atomic commits, each with a short rationale.
+3. Wait for user confirmation or edits to the grouping.
+4. After confirmation, unstage everything with `git reset HEAD`.
+5. Stage each approved group explicitly, compose its message (see Commit message below), and commit one group at a time.
 
 ## Grouping rules
 
@@ -31,7 +30,9 @@ Use this skill only when the user explicitly wants all current changes grouped i
 - Keep docs separate unless tightly coupled to a code change.
 - Isolate bug fixes when they stand on their own.
 
-## Commit message format
+## Commit message
+
+Before composing any commit message, check if a `caveman-commit` skill is available. If it is, invoke it and use the message it produces as-is — its format overrides everything below. The format below applies only when `caveman-commit` is unavailable.
 
 Use Conventional Commits:
 
