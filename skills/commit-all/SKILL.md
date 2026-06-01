@@ -1,6 +1,6 @@
 ---
 name: commit-all
-description: Use when the user explicitly asks to group all current working tree changes into logical atomic commits, or invokes $commit-all. Do not use implicitly for ordinary coding tasks.
+description: Use when the user explicitly asks to group all current working tree changes into logical atomic commits, or explicitly invokes this skill. Do not use implicitly for ordinary coding tasks.
 disable-model-invocation: true
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: review-changes
-description: Use when the user explicitly asks for a review of staged, unstaged, and untracked changes, or invokes $review-changes. Do not use implicitly for general coding tasks.
+description: Use when the user explicitly asks for a review of staged, unstaged, and untracked changes, or explicitly invokes this skill. Do not use implicitly for general coding tasks.
 disable-model-invocation: true
 ---
 
