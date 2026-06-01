@@ -1,5 +1,7 @@
 # skills
 
+[![skills.sh](https://skills.sh/b/VidhyaKumar/skills)](https://skills.sh/VidhyaKumar/skills)
+
 Agent skills for git workflows. Compatible with Claude Code, Cursor, Codex, OpenCode, and other [Agent Skills](https://agentskills.io)-compatible agents.
 
 ## Skills
@@ -15,22 +17,20 @@ Agent skills for git workflows. Compatible with Claude Code, Cursor, Codex, Open
 Install all skills:
 
 ```bash
-bunx skills add OWNER/REPO --skill '*'
+bunx skills add VidhyaKumar/skills --skill '*'
 ```
 
 Install a specific skill:
 
 ```bash
-bunx skills add OWNER/REPO --skill commit-all
+bunx skills add VidhyaKumar/skills --skill commit-all
 ```
 
 Target a specific agent:
 
 ```bash
-bunx skills add OWNER/REPO --skill '*' -a claude-code
+bunx skills add VidhyaKumar/skills --skill '*' -a claude-code
 ```
-
-Replace `OWNER/REPO` with this repository's GitHub path.
 
 ## Layout
 
