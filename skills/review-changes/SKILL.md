@@ -20,11 +20,14 @@ Skip empty categories.
 
 1. Bugs or logic errors
 2. Security concerns or issues
-3. Over-engineering, needless complexity
+3. Over-engineering, needless complexity, premature abstraction
 4. Clever code that hurts readability
 5. Convention violations
 6. Missed edge cases
 7. Dead code
+8. Poor variable or function naming
+9. Excessive prop drilling
+10. Data queries and mutations far from their consumer
 
 ## Output format
 
