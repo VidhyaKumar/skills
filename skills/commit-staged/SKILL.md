@@ -24,7 +24,7 @@ Use this skill only when the user explicitly wants the already staged changes co
 
 ## Commit message
 
-Before composing the commit message, check if a `caveman-commit` skill is available. If it is, invoke it and use the message it produces as-is — its format overrides everything below. The format below applies only when `caveman-commit` is unavailable.
+Before composing the commit message, check if a `caveman-commit` skill is available. Check the full set of available skills, including any provided by plugins or extensions — not just a single skill directory. If it is available, invoke it and use the message it produces as-is — its format overrides everything below. The format below applies only when `caveman-commit` is unavailable.
 
 ```text
 <type>(<scope>): <description>
