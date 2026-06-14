@@ -28,19 +28,44 @@ Skip generated files, vendor code, build output, and lockfiles unless they are d
    - `git diff --name-only`
    - `git ls-files --others --exclude-standard`
 
-2. Review staged changes:
+2. Build the review scope.
+   - Group files as staged, unstaged, and untracked.
+   - Remove generated files, vendor code, build output, and lockfiles unless directly relevant.
+   - Note risky areas such as auth, billing, permissions, migrations, data writes, or concurrency.
+
+3. Decide whether to use subagents.
+   - Use subagents when the review spans multiple files, multiple domains, or a large diff.
+   - Keep the main agent focused on scope control, final judgment, de-duplication, and the final response.
+   - Skip subagents for tiny changes where delegation would add more overhead than clarity.
+
+4. Split subagent work by clear review slices when helpful:
+   - staged vs. unstaged vs. untracked changes
+   - frontend vs. backend vs. shared packages
+   - independent feature areas
+   - one large file per subagent
+   - risky areas first
+
+5. Give each subagent an exact file list or diff slice.
+   - Tell subagents to read surrounding code, avoid edits, preserve context discipline, and report only concrete findings or "no findings".
+   - Require each subagent to report files reviewed, findings in the standard output format, missing tests or verification gaps, assumptions, and uncertain areas.
+
+6. Review assigned staged changes:
    - Use `git diff --cached`
    - Read surrounding code before commenting.
 
-3. Review unstaged changes:
+7. Review assigned unstaged changes:
    - Use `git diff`
    - Read surrounding code before commenting.
 
-4. Review untracked files:
+8. Review assigned untracked files:
    - Read the full file.
    - Inspect nearby files to understand conventions and integration points.
 
-5. Prefer findings over summary.
+9. Synthesize the review.
+   - Review subagent findings before presenting them.
+   - Merge duplicates, drop weak findings, resolve conflicts, and keep the final review concise.
+
+10. Prefer findings over summary.
    - Report concrete bugs, regressions, security issues, or maintainability problems.
    - Avoid low-value style nits unless they materially affect readability or consistency.
 
