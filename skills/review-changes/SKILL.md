@@ -1,56 +1,104 @@
 ---
 name: review-changes
-description: Use when the user explicitly asks for a review of staged, unstaged, and untracked changes, or explicitly invokes this skill. Do not use implicitly for general coding tasks.
+description: Review staged, unstaged, and untracked local working-tree changes. Use when the user asks to review local changes, staged changes, unstaged changes, untracked files, working-tree changes, or wants a pre-commit code review.
 disable-model-invocation: true
 ---
 
 # Review Changes
 
-Use this skill only when the user explicitly wants a code review of the current working tree.
+Use this skill to review the current working tree only: staged, unstaged, and untracked files.
 
-## Review scope
+Do not review committed branch diffs unless the user explicitly asks. Do not edit files unless the user explicitly asks for fixes.
 
-- Review staged, unstaged, and untracked files.
-- Read surrounding code when needed. Do not review diffs in isolation.
-- Prefer findings over summary.
+## Scope
 
-## Review categories
+Review:
 
-Skip empty categories.
+- staged changes
+- unstaged changes
+- untracked files
 
-1. Bugs or logic errors
-2. Security concerns or issues
+Skip generated files, vendor code, build output, and lockfiles unless they are directly relevant to the change.
+
+## Process
+
+1. Identify local changes:
+   - `git status --short`
+   - `git diff --cached --name-only`
+   - `git diff --name-only`
+   - `git ls-files --others --exclude-standard`
+
+2. Review staged changes:
+   - Use `git diff --cached`
+   - Read surrounding code before commenting.
+
+3. Review unstaged changes:
+   - Use `git diff`
+   - Read surrounding code before commenting.
+
+4. Review untracked files:
+   - Read the full file.
+   - Inspect nearby files to understand conventions and integration points.
+
+5. Prefer findings over summary.
+   - Report concrete bugs, regressions, security issues, or maintainability problems.
+   - Avoid low-value style nits unless they materially affect readability or consistency.
+
+## Review Priorities
+
+Flag issues in this order:
+
+1. Bugs, regressions, broken edge cases, race conditions, data loss
+2. Security, privacy, auth, permission, injection, or unsafe execution issues
 3. Over-engineering, needless complexity, premature abstraction
 4. Clever code that hurts readability
-5. Convention violations
-6. Missed edge cases
-7. Dead code
-8. Poor variable or function naming
-9. Excessive prop drilling
-10. Data queries and mutations far from their consumer
+5. Convention violations against the local codebase
+6. Missing meaningful tests for risky behavior
+7. Dead code, unused exports, or unreachable paths
+8. Poor names that obscure behavior or side effects
+9. Excessive prop drilling or misplaced data fetching/mutations
+10. Spaghetti branching or feature-specific logic leaking into shared paths
 
-## Output format
+## Code Quality Bar
+
+Prefer direct, boring, maintainable code.
+
+Push back on:
+
+- nested conditionals that could be guard clauses
+- `else` after `return` or `throw`
+- unnecessary `let`
+- non-null assertions where narrowing would work
+- `any`, `unknown`, casts, or optionality that hide the real contract
+- nested ternaries
+- pass-through helpers, identity wrappers, or abstractions that do not simplify anything
+- one-off special cases inserted into unrelated flows
+- duplicated logic instead of using a canonical helper
+- files or components growing beyond a healthy size without decomposition
+
+Do not request churn when the code is already clear.
+
+## Output Format
+
+Lead with findings. Skip empty categories. If there are no findings, say that clearly.
 
 For each finding:
 
 ```text
 ### [Category] severity: 🔴|🟡|🔵
 
-WHAT: `file:line` — brief description
+WHAT: `file:line` - concise issue
 
-WHY: why it's a problem
+WHY: concrete risk or maintainability cost
 
-HOW: how to fix it
+HOW: specific fix or simpler structure
 ```
 
-End with a verdict: `🚀 ship it`, `⚠️ minor fixes needed`, or `⛔ needs rework`.
+End with:
 
-## Review standard
+```text
+Verdict: 🚀 ship it | ⚠️ minor fixes needed | ⛔ needs rework
 
-- Prioritize correctness and regressions first.
-- After correctness, prefer simple, readable, maintainable code.
-- Flag verbosity, cleverness, and premature abstraction; favor the plainest version that solves the problem.
-- Call out concrete behavioral risk, not vague style opinions.
-- Mention missing tests when they materially affect confidence.
-- Match the project's own conventions first. When a convention is unclear or absent, reference https://github.com/midday-ai/midday for coding standards and idioms.
-- If there are no findings, say that explicitly.
+Tests: mention tests reviewed, missing tests, or why tests were not needed.
+Scope: staged, unstaged, and untracked changes reviewed.
+```
