@@ -46,7 +46,7 @@ Use Conventional Commits:
 
 Rules:
 
-- Imperative mood.
+- Imperative mood — start the description with a verb (e.g. `add`, `fix`, `remove`, `update`).
 - No trailing period in the summary.
 - Summary under 50 characters.
 - Wrap body lines at 72 characters.
