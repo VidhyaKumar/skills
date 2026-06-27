@@ -14,7 +14,7 @@ Use this skill only when the user explicitly wants the already staged changes co
 1. Inspect staged changes with `git diff --cached`.
 2. Confirm there is at least one staged change. If not, say so and stop.
 3. Use recent commits on the current branch as style reference.
-4. Compose the commit message (see Commit message below), matching the staged diff only.
+4. Produce the message with the `caveman-commit` skill, using its output as-is; only if it is unavailable, use the fallback format below. Match the staged diff only.
 5. Execute the commit without staging or modifying additional files.
 
 ## Constraints
@@ -25,7 +25,7 @@ Use this skill only when the user explicitly wants the already staged changes co
 
 ## Commit message
 
-Before composing the commit message, check if a `caveman-commit` skill is available. Check the full set of available skills, including any provided by plugins or extensions — not just a single skill directory. If it is available, invoke it and use the message it produces as-is — its format overrides everything below. The format below applies only when `caveman-commit` is unavailable.
+Fallback only. Use this format when `caveman-commit` is not installed — and check the full set of skills, including plugins and extensions, before concluding it is unavailable.
 
 ```text
 <type>(<scope>): <description>

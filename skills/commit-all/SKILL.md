@@ -18,10 +18,10 @@ Use this skill only when the user explicitly wants all current changes grouped i
 ## Workflow
 
 1. If there are no changes, say so and stop.
-2. Propose a plan that groups files into atomic commits, each with a short rationale.
+2. Propose a plan that groups files into atomic commits (see Grouping rules below), each with a short rationale.
 3. Wait for user confirmation or edits to the grouping.
 4. After confirmation, unstage everything with `git reset HEAD`.
-5. Stage each approved group explicitly, compose its message (see Commit message below), and commit one group at a time.
+5. For each approved group: stage it explicitly, produce its message with the `caveman-commit` skill (use its output as-is; fall back to the format below only if unavailable), and commit — one group at a time.
 
 ## Grouping rules
 
@@ -33,9 +33,7 @@ Use this skill only when the user explicitly wants all current changes grouped i
 
 ## Commit message
 
-Before composing any commit message, check if a `caveman-commit` skill is available. Check the full set of available skills, including any provided by plugins or extensions — not just a single skill directory. If it is available, invoke it and use the message it produces as-is — its format overrides everything below. The format below applies only when `caveman-commit` is unavailable.
-
-Use Conventional Commits:
+Fallback only. Use this format when `caveman-commit` is not installed — and check the full set of skills, including plugins and extensions, before concluding it is unavailable. Conventional Commits:
 
 ```text
 <type>(<scope>): <description>
