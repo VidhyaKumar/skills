@@ -2,7 +2,6 @@
 name: commit-staged
 description: Use when the user explicitly asks to generate a commit message for already staged changes and create the commit, or explicitly invokes this skill. Do not use implicitly for ordinary coding tasks.
 disable-model-invocation: true
-model: sonnet
 ---
 
 # Commit Staged

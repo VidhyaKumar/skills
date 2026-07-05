@@ -1,7 +1,6 @@
 ---
 name: review-changes
 description: Review staged, unstaged, and untracked local working-tree changes. Use when the user asks to review local changes, staged changes, unstaged changes, untracked files, working-tree changes, or wants a pre-commit code review.
-disable-model-invocation: true
 ---
 
 # Review Changes
