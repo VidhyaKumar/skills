@@ -10,6 +10,7 @@ Agent skills for git workflows and code cleanup. Compatible with Claude Code, Cu
 | --- | --- |
 | `commit-all` | Group all working tree changes into logical atomic commits. |
 | `commit-staged` | Generate a commit message for staged changes and commit. |
+| `create-pr` | Create a pull request with a succinct what/why/how description. |
 | `review-changes` | Review staged, unstaged, and untracked changes. |
 | `deslopper` | Simplify and refine recently modified code while preserving functionality. |
 
@@ -39,6 +40,7 @@ bunx skills add VidhyaKumar/skills --skill '*' -a claude-code
 skills/
   commit-all/SKILL.md
   commit-staged/SKILL.md
+  create-pr/SKILL.md
   review-changes/SKILL.md
   deslopper/SKILL.md
 skills.sh.json

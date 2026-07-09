@@ -5,7 +5,7 @@
 		{
 			"title": "Git",
 			"description": "Skills for committing and reviewing working tree changes.",
-			"skills": ["commit-all", "commit-staged", "review-changes", "deslopper"]
+			"skills": ["commit-all", "commit-staged", "create-pr", "review-changes", "deslopper"]
 		}
 	]
 }
