@@ -4,8 +4,13 @@
 	"groupings": [
 		{
 			"title": "Git",
-			"description": "Skills for committing and reviewing working tree changes.",
-			"skills": ["commit-all", "commit-staged", "create-pr", "review-changes", "deslopper"]
+			"description": "Skills for committing, reviewing, and shipping working tree changes.",
+			"skills": ["commit-all", "commit-staged", "create-pr", "review-changes"]
+		},
+		{
+			"title": "Slop Check",
+			"description": "Skills for cleaning up AI-generated output: code simplification and prose de-slopping.",
+			"skills": ["code-slop-check", "prose-slop-check"]
 		}
 	]
 }

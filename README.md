@@ -12,7 +12,8 @@ Agent skills for git workflows and code cleanup. Compatible with Claude Code, Cu
 | `commit-staged` | Generate a commit message for staged changes and commit. |
 | `create-pr` | Create a pull request with a succinct what/why/how description. |
 | `review-changes` | Review staged, unstaged, and untracked changes. |
-| `deslopper` | Simplify and refine recently modified code while preserving functionality. |
+| `code-slop-check` | Simplify and refine recently modified code while preserving functionality. |
+| `prose-slop-check` | Detect and remove AI-writing tells from prose while preserving the writer's voice. |
 
 ## Install
 
@@ -42,6 +43,10 @@ skills/
   commit-staged/SKILL.md
   create-pr/SKILL.md
   review-changes/SKILL.md
-  deslopper/SKILL.md
+  code-slop-check/SKILL.md
+  prose-slop-check/
+    SKILL.md
+    eval.md
+    references/
 skills.sh.json
 ```
