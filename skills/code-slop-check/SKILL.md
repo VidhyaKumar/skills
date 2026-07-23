@@ -1,5 +1,5 @@
 ---
-name: deslopper
+name: code-slop-check
 description: Simplify and refine recently modified code while preserving functionality. Use when asked to "deslop", "clean up code", "simplify code", or after making changes that could benefit from refinement.
 ---
 
