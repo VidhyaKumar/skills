@@ -14,6 +14,7 @@ Agent skills for git workflows and code cleanup. Compatible with Claude Code, Cu
 | `review-changes` | Review staged, unstaged, and untracked changes. |
 | `code-slop-check` | Simplify and refine recently modified code while preserving functionality. |
 | `prose-slop-check` | Detect and remove AI-writing tells from prose while preserving the writer's voice. |
+| `bro` | Restate the last message simply and without jargon. |
 
 ## Install
 
