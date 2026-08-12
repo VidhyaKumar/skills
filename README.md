@@ -15,6 +15,7 @@ Agent skills for git workflows and code cleanup. Compatible with Claude Code, Cu
 | `code-slop-check` | Simplify and refine recently modified code while preserving functionality. |
 | `prose-slop-check` | Detect and remove AI-writing tells from prose while preserving the writer's voice. |
 | `bro` | Restate the last message simply and without jargon. |
+| `attention-kind` | ADHD-friendly replies: plain English, front-loaded answers, short by default. |
 
 ## Install
 
