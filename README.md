@@ -16,6 +16,7 @@ Agent skills for git workflows and code cleanup. Compatible with Claude Code, Cu
 | `prose-slop-check` | Detect and remove AI-writing tells from prose while preserving the writer's voice. |
 | `bro` | Restate the last message simply and without jargon. |
 | `attention-kind` | ADHD-friendly replies: plain English, front-loaded answers, short by default. |
+| `happy-path-first` | Implement with happy-path-first orchestration, deep modules, and type-driven invariants. |
 
 ## Install
 
@@ -50,5 +51,6 @@ skills/
     SKILL.md
     eval.md
     references/
+  happy-path-first/SKILL.md
 skills.sh.json
 ```

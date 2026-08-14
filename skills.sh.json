@@ -11,6 +11,11 @@
 			"title": "Slop Check",
 			"description": "Skills for cleaning up AI-generated output: code simplification and prose de-slopping.",
 			"skills": ["code-slop-check", "prose-slop-check"]
+		},
+		{
+			"title": "Implementation",
+			"description": "Skills for how to structure and write the change itself.",
+			"skills": ["happy-path-first"]
 		}
 	]
 }
