@@ -38,8 +38,12 @@ Fixed rules:
 
 ## Activation
 
-1. Ensure `.fleet/` is gitignored; append if not. Then, from the repo root (`git rev-parse --show-toplevel` — the guard checks the root, not your cwd): `mkdir -p .fleet && touch .fleet/active` (arms the hook — the gitignore edit must come first, the armed hook blocks it).
-2. If `.fleet/tasks.md` exists, reconcile: compare against live panes and surviving `fleet/*` branches; report orphans before taking new work.
+**Fast path (repeat activation):** if `.fleet/` already exists and `tasks.md` has no task rows, run `touch .fleet/active` from the repo root, announce, and skip everything else.
+
+Otherwise:
+
+1. First activation only (no `.fleet/` dir): ensure `.fleet/` is gitignored; append if not. Then, from the repo root (`git rev-parse --show-toplevel`; the guard checks the root, not your cwd): `mkdir -p .fleet && touch .fleet/active` (arms the hook — the gitignore edit must come first, the armed hook blocks it).
+2. If `tasks.md` has task rows, reconcile: compare against live panes and surviving `fleet/*` branches; report orphans before taking new work.
 3. Announce: "Fleet mode active — I orchestrate, workers act."
 
 On "fleet off": wind down live workers (harvest or report), `rm .fleet/active` **before** any cleanup edits (the armed guard blocks in-place tools even on `.fleet/` files), prune finished rows from `tasks.md`, confirm in one line.
@@ -63,7 +67,7 @@ Split the request into independent tasks: independent = disjoint files/areas; ot
 
 Id format: `<verb>-<object>` kebab-case, ≤ 24 chars (e.g. `fix-login-test`); on collision append `-2`, `-3`, …
 
-Record every state change in `.fleet/tasks.md`; it is what a restarted session reconciles from. `base` is the branch the task forks from and merges into — the currently checked-out branch at intake unless the user names another. Schema:
+Record every state change in `.fleet/tasks.md`; it is what a restarted session reconciles from. `base` is the branch the task forks from and merges into: the currently checked-out branch at intake unless the user names another. Schema:
 
 ```markdown
 | id | shape | type | worker | status | pane | branch | base | updated |
@@ -132,9 +136,9 @@ On a worker's done:
 2. Checklist in order, first failure is a defect: (a) diff does what the brief asked, nothing more; (b) no files outside stated scope; (c) tests/lints named in the brief ran and pass (verbatim output in the result file); (d) no obvious correctness, security, or data-loss issue. Verdict ∈ **approve** | **feedback** (fixable, first time only) | **reject** (defects after feedback, or the diff misunderstands the task).
 3. **feedback**: send one concrete fix list (feedback template), re-arm the watcher, re-review once; second verdict can only be approve or reject.
 4. **approve**/**reject**: present task, diff summary, verdict, and (if reject) recommended next step. **The user approves every merge**; never merge unprompted.
-5. On approval: in the primary checkout, verify `git branch --show-current` prints the task's `<base>` (if not, stop and ask the user), then `git merge --no-ff fleet/<id>`. On conflict: `git merge --abort` immediately — never resolve conflicts yourself — then prompt the **same worker in its existing worktree** to `git rebase <base>` (no new task, worktree, or branch) or escalate to the user. No further merges until the primary checkout is clean.
+5. On approval: in the primary checkout, verify `git branch --show-current` prints the task's `<base>` (if not, stop and ask the user), then `git merge --no-ff fleet/<id>`. On conflict: `git merge --abort` immediately (never resolve conflicts yourself), then prompt the **same worker in its existing worktree** to `git rebase <base>` (no new task, worktree, or branch) or escalate to the user. No further merges until the primary checkout is clean.
 
-Scouts: verify the report answers the brief, then relay your synthesis, not the raw file. That relay marks the scout `done` — tear it down immediately (pane + result file; no worktree or branch exists).
+Scouts: verify the report answers the brief, then relay your synthesis, not the raw file. That relay marks the scout `done`; tear it down immediately (pane + result file; no worktree or branch exists).
 
 ### 6. Teardown
 
