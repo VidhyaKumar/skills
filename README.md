@@ -38,20 +38,3 @@ Target a specific agent:
 ```bash
 bunx skills add VidhyaKumar/skills --skill '*' -a claude-code
 ```
-
-## Layout
-
-```
-skills/
-  commit-all/SKILL.md
-  commit-staged/SKILL.md
-  create-pr/SKILL.md
-  review-changes/SKILL.md
-  code-slop-check/SKILL.md
-  prose-slop-check/
-    SKILL.md
-    eval.md
-    references/
-  happy-path-first/SKILL.md
-skills.sh.json
-```
