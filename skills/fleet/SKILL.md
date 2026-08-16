@@ -18,13 +18,13 @@ While active, this skill supersedes any skill that would have the main agent wri
 
 ## Config
 
-Edit this table to fit your installed CLIs and pricing (defaults reflect Aug 2026 benchmarks). `<effort>` in briefs comes from the effort column.
+Edit this table to fit your installed CLIs and pricing (defaults reflect Aug 2026 benchmarks; luna effort tiers favor accuracy over cost — a missed instruction costs a feedback round, the slowest step in the pipeline). `<effort>` in briefs comes from the effort column.
 
 | Task type | Worker CLI (`--kind`) | Model flags | `<effort>` |
 | --- | --- | --- | --- |
 | Scout | `grok` | `-m grok-4.6 --reasoning-effort medium` | medium |
-| Chore | `codex` | `-m gpt-5.6-luna -c model_reasoning_effort="low"` | low |
-| Trivial edit | `codex` | `-m gpt-5.6-luna -c model_reasoning_effort="medium"` | medium |
+| Chore | `codex` | `-m gpt-5.6-luna -c model_reasoning_effort="medium"` | medium |
+| Trivial edit | `codex` | `-m gpt-5.6-luna -c model_reasoning_effort="high"` | high |
 | Implement | `grok` | `-m grok-4.6 --reasoning-effort high` | high |
 
 Classify with the first matching rule: **Scout** = information only, no file changes in the deliverable. **Chore** = mechanical, no logic decisions (rename, move, formatting, boilerplate, docstrings, dependency bump without code adaptation). **Trivial edit** = single file, exact change fully specified before dispatch, ≤ ~20 changed lines. **Implement** = everything else.
