@@ -143,7 +143,6 @@ It closes the tab, removes the worktree and branch (refusing unmerged commits wi
 
 - Fleet-workers get self-contained briefs, never conversation history or prior task results; chained tasks reference the merged code, not transcripts.
 - You consume result files and targeted diffs; read pane output only on `blocked`/`unknown`/timeout/steer, capped at 120 lines. Never scroll-scrape a pane in place of the result file.
-- If a result file blows its brief's cap (~80 lines Ship, ~150 Scout) or pastes code/logs, have the fleet-worker tighten it (within the existing feedback round). Tighten means cut noise, never substance: a report long because of failing output or real risks stands as is.
 - Relay synthesis to the user in your own words with file:line references; never paste raw reports or full diffs.
 
 ## State files
