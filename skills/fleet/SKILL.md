@@ -22,11 +22,12 @@ Fleet-workers default to the fleet-manager's own setup: same harness as the `--k
 
 ```markdown
 kind: pi
-model-flags: --model gpt-5.6-luna:xhigh
+model: gpt-5.6-luna
 effort: xhigh
+flags:
 ```
 
-Record resolved values, never "match the fleet-manager" — a later session may run a different model. `<effort>` in briefs comes from `effort`. Flag syntax examples: pi `--model <pattern>:<thinking>`, codex `-m <id> -c model_reasoning_effort="<tier>"`, grok `-m <id> --reasoning-effort <tier>`, claude `--model <id>`. Pi fleet-workers coexist with the fleet-guard-pi extension: worktrees have no `.fleet/active`, so Ship fleet-workers run unguarded, and a scout's `.fleet/<id>.result.md` write in the primary checkout is exempt.
+`kind` matches herdr's `--kind` flag (the fleet-worker harness); `model` and `effort` are translated into that CLI's own flags at dispatch (pi `--model <model>:<effort>`, codex `-m <model> -c model_reasoning_effort="<effort>"`, grok `-m <model> --reasoning-effort <effort>`, claude `--model <model>`); `flags` is optional extra CLI arguments appended verbatim. `effort` also fills `<effort>` in briefs. Record resolved values, never "match the fleet-manager" — a later session may run a different model. Pi fleet-workers coexist with the fleet-guard-pi extension: worktrees have no `.fleet/active`, so Ship fleet-workers run unguarded, and a scout's `.fleet/<id>.result.md` write in the primary checkout is exempt.
 
 Fixed rules:
 
@@ -99,7 +100,7 @@ Scouts run read-only in the primary checkout.
 
 ```bash
 # pane id at .result.pane.pane_id
-herdr agent start fleet-<id> --kind <cli> --pane <PANE_ID> -- <model flags>
+herdr agent start fleet-<id> --kind <kind> --pane <PANE_ID> -- <model/effort flags composed from config.md, then its extra flags>
 # stage the filled brief first (guard-exempt path; also keeps the command free
 # of brief text that could trip the Bash guard or expand in your shell)
 herdr agent prompt fleet-<id> "$(cat .fleet/<id>.brief.md)"
