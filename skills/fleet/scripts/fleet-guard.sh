@@ -52,13 +52,17 @@ case "$tool" in
     ;;
   Bash|run_terminal_command)
     cmd="$(jq -r '(.tool_input // .toolInput // {}) | .command // empty' <<<"$input")"
+    # Replace quoted segments with a placeholder so quoted text (e.g. a '>'
+    # inside a git --format string) can't trip the heuristics. A placeholder,
+    # not deletion: `echo x > "file"` must still look like a redirection.
+    stripped="$(sed -E "s/'[^']*'/Q/g; s/\"[^\"]*\"/Q/g" <<<"$cmd")"
     # In-place editors and tee are always writes.
-    if grep -qE '(^|[;&|[:space:]])(sed[[:space:]]+-[a-zA-Z]*i|perl[[:space:]]+-[a-zA-Z]*i|tee[[:space:]])' <<<"$cmd"; then
+    if grep -qE '(^|[;&|[:space:]])(sed[[:space:]]+-[a-zA-Z]*i|perl[[:space:]]+-[a-zA-Z]*i|tee[[:space:]])' <<<"$stripped"; then
       deny "mutating shell command blocked (in-place edit/tee)."
     fi
     # Redirection into files, unless the target is .fleet/, /tmp, or /dev/null.
-    if grep -qE '>>?[[:space:]]*[^&|[:space:]]' <<<"$cmd" \
-      && ! grep -qE '>>?[[:space:]]*("?[^[:space:]"]*\.fleet/|/tmp/|/dev/null)' <<<"$cmd"; then
+    if grep -qE '>>?[[:space:]]*[^&|[:space:]]' <<<"$stripped" \
+      && ! grep -qE '>>?[[:space:]]*([^[:space:]]*\.fleet/|/tmp/|/dev/null)' <<<"$stripped"; then
       deny "shell redirection into a file blocked."
     fi
     exit 0

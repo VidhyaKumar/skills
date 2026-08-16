@@ -47,12 +47,16 @@ export default function (pi: ExtensionAPI) {
 
     if (name === "bash") {
       const cmd = String((event.input as { command?: string }).command ?? "");
+      // Replace quoted segments with a placeholder so quoted text (e.g. a '>'
+      // inside a git --format string) can't trip the heuristics. A placeholder,
+      // not deletion: `echo x > "file"` must still look like a redirection.
+      const stripped = cmd.replace(/'[^']*'/g, "Q").replace(/"[^"]*"/g, "Q");
       // In-place editors and tee are always writes.
-      if (/(^|[;&|\s])(sed\s+-[a-zA-Z]*i|perl\s+-[a-zA-Z]*i|tee\s)/.test(cmd)) {
+      if (/(^|[;&|\s])(sed\s+-[a-zA-Z]*i|perl\s+-[a-zA-Z]*i|tee\s)/.test(stripped)) {
         return deny("mutating shell command blocked (in-place edit/tee).");
       }
       // Redirection into files, unless the target is .fleet/, /tmp, or /dev/null.
-      if (/>>?\s*[^&|\s]/.test(cmd) && !/>>?\s*("?[^\s"]*\.fleet\/|\/tmp\/|\/dev\/null)/.test(cmd)) {
+      if (/>>?\s*[^&|\s]/.test(stripped) && !/>>?\s*([^\s]*\.fleet\/|\/tmp\/|\/dev\/null)/.test(stripped)) {
         return deny("shell redirection into a file blocked.");
       }
     }

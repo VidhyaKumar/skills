@@ -12,6 +12,11 @@ timeout="${3:-900000}"
 
 agent="fw-$(basename "$(git rev-parse --show-toplevel)")-$id"
 
+# Two-phase wait: the dispatch prompt may not have flipped the fleet-worker to
+# 'working' yet, and a settled-state wait on a still-idle agent returns
+# immediately — a premature event. Wait for 'working' first (worker already
+# past it -> instant; worker already finished -> 15s, then settle correctly).
+herdr agent wait "$agent" --until working --timeout 15000 >/dev/null 2>&1
 herdr agent wait "$agent" --timeout "$timeout" >/dev/null 2>&1
 code=$?
 
