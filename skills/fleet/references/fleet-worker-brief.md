@@ -27,8 +27,14 @@ CONSTRAINTS:
 
 WHEN DONE:
 1. Write a completion report to <main-repo-path>/.fleet/<id>.result.md
-   containing: what changed (files + why), test/lint results verbatim,
-   anything you could not do, and any follow-ups you noticed but did not act on.
+   containing: what changed (files + why), test/lint outcome (command run,
+   pass/fail counts; verbatim output only for failures), anything you could
+   not do, and any follow-ups you noticed but did not act on. Conclusions
+   only — no file contents, no diffs (the branch carries the diff), no
+   passing-test logs. Keep it under ~80 lines, but never at the cost of
+   substance: failing output, risks (data loss, security, breaking
+   changes), and anything needed to review safely always go in, even if
+   that runs over.
 2. Reply with ONLY this line: DONE: <main-repo-path>/.fleet/<id>.result.md
 ```
 
@@ -48,9 +54,13 @@ SCOPE:
   than exhaustively reading large directories.
 
 WHEN DONE:
-1. Write your full report to <main-repo-path>/.fleet/<id>.result.md —
-   conclusions first, then evidence with file:line references. Answer the
+1. Write your report to <main-repo-path>/.fleet/<id>.result.md —
+   conclusions first, then evidence as file:line references. Answer the
    question directly; state uncertainty explicitly instead of hiding it.
+   Reference code, never paste it: no file contents, no command-output
+   dumps (a short quoted line as evidence is fine). Keep it under ~150
+   lines, but completeness beats the cap: if answering honestly needs
+   more evidence, include it.
 2. Reply with ONLY this line: DONE: <main-repo-path>/.fleet/<id>.result.md
 ```
 

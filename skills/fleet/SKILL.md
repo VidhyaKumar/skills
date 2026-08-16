@@ -122,7 +122,7 @@ Fleet-workers never block the main session; you stay free to answer the user and
 On a fleet-worker's done:
 
 1. Read `.fleet/<id>.result.md`, then review the **actual diff** against the task's recorded base: `git -C <worktree> diff <base>...fleet/<id>`.
-2. Checklist in order, first failure is a defect: (a) diff does what the brief asked, nothing more; (b) no files outside stated scope; (c) tests/lints named in the brief ran and pass (verbatim output in the result file); (d) no obvious correctness, security, or data-loss issue. Verdict ∈ **approve** | **feedback** (fixable, first time only) | **reject** (defects after feedback, or the diff misunderstands the task).
+2. Checklist in order, first failure is a defect: (a) diff does what the brief asked, nothing more; (b) no files outside stated scope; (c) tests/lints named in the brief ran and pass (outcome summary in the result file; verbatim only for failures); (d) no obvious correctness, security, or data-loss issue. Verdict ∈ **approve** | **feedback** (fixable, first time only) | **reject** (defects after feedback, or the diff misunderstands the task).
 3. **feedback**: send one concrete fix list (feedback template), re-arm the watcher, re-review once; second verdict can only be approve or reject.
 4. **approve**/**reject**: present task, diff summary, verdict, and (if reject) recommended next step. **The user approves every merge**; never merge unprompted.
 5. On approval: in the primary checkout, verify `git branch --show-current` prints the task's `<base>` (if not, stop and ask the user), then `git merge --no-ff fleet/<id>`. On conflict: `git merge --abort` immediately (never resolve conflicts yourself), then prompt the **same fleet-worker in its existing worktree** to `git rebase <base>` (no new task, worktree, or branch) or escalate to the user. No further merges until the primary checkout is clean.
@@ -143,7 +143,7 @@ It closes the tab, removes the worktree and branch (refusing unmerged commits wi
 
 - Fleet-workers get self-contained briefs, never conversation history or prior task results; chained tasks reference the merged code, not transcripts.
 - You consume result files and targeted diffs; read pane output only on `blocked`/`unknown`/timeout/steer, capped at 120 lines. Never scroll-scrape a pane in place of the result file.
-- If a result file exceeds ~200 lines, have the fleet-worker tighten it (within the existing feedback round).
+- If a result file blows its brief's cap (~80 lines Ship, ~150 Scout) or pastes code/logs, have the fleet-worker tighten it (within the existing feedback round). Tighten means cut noise, never substance: a report long because of failing output or real risks stands as is.
 - Relay synthesis to the user in your own words with file:line references; never paste raw reports or full diffs.
 
 ## State files
