@@ -24,10 +24,10 @@ Fleet-workers default to the fleet-manager's own setup: same harness as the `--k
 kind: pi
 model: gpt-5.6-luna
 effort: xhigh
-flags:
+flags: --provider openai-codex
 ```
 
-`kind` matches herdr's `--kind` flag (the fleet-worker harness); `model` and `effort` are translated into that CLI's own flags by `fleet-dispatch.sh` (for kinds it doesn't know, put the model/effort flags in `flags` instead); `flags` is optional extra CLI arguments appended verbatim. `effort` also fills `<effort>` in briefs. Record resolved values, never "match the fleet-manager" — a later session may run a different model. Pi fleet-workers coexist with the fleet-guard-pi extension: worktrees have no `.fleet/active`, so Ship fleet-workers run unguarded, and a scout's `.fleet/<id>.result.md` write in the primary checkout is exempt.
+`kind` matches herdr's `--kind` flag (the fleet-worker harness); `model` and `effort` are translated into that CLI's own flags by `fleet-dispatch.sh` (for kinds it doesn't know, put the model/effort flags in `flags` instead); `flags` is optional extra CLI arguments appended verbatim. Pi treats `model` as a fuzzy pattern across all providers — if it could match a same-named model elsewhere (e.g. a `:batch` variant on openrouter), pin it with `flags: --provider <provider>`; when the fleet-manager itself runs on pi, copy its own provider. `effort` also fills `<effort>` in briefs. Record resolved values, never "match the fleet-manager" — a later session may run a different model. Pi fleet-workers coexist with the fleet-guard-pi extension: worktrees have no `.fleet/active`, so Ship fleet-workers run unguarded, and a scout's `.fleet/<id>.result.md` write in the primary checkout is exempt.
 
 Fixed rules:
 

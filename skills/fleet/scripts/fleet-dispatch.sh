@@ -43,8 +43,20 @@ tab="$(printf %s "$created" | jq -r '.result.tab.tab_id // empty')"
 pane="$(printf %s "$created" | jq -r '.result.root_pane.pane_id // empty')"
 [ -n "$tab" ] && [ -n "$pane" ] || die "tab create failed: $created"
 
+# The fresh tab's shell needs a moment to reach its interactive prompt;
+# herdr rejects agent start until then (agent_pane_busy), so retry ~10s.
+# On permanent failure, close the tab we just opened before dying.
+tries=0
 # $extra unquoted on purpose: 'flags:' is a whitespace-separated argument list
-herdr agent start "$name" --kind "$kind" --pane "$pane" -- "$@" $extra
+until out="$(herdr agent start "$name" --kind "$kind" --pane "$pane" -- "$@" $extra 2>&1)"; do
+  tries=$((tries + 1))
+  if [ "$tries" -ge 10 ] || ! printf %s "$out" | grep -q agent_pane_busy; then
+    herdr tab close "$tab" >/dev/null 2>&1 || true
+    die "agent start failed: $out"
+  fi
+  sleep 1
+done
+printf '%s\n' "$out"
 herdr agent prompt "$name" "$(cat "$brief")"
 nohup bash "$sdir/fleet-watch.sh" "$id" "$HERDR_PANE_ID" >/dev/null 2>&1 &
 sh "$sdir/fleet-task.sh" tab "$id" "$tab" >/dev/null
