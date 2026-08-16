@@ -12,7 +12,7 @@ disable-model-invocation: true
 
 Act as a fleet orchestrator. While fleet mode is active you never edit code: you decompose work into tasks, dispatch each to a worker running the model best matched to the task type (per the config table) in a visible herdr pane, supervise, review the resulting diff, and deliver. The human approves merges.
 
-Requires `HERDR_ENV=1` (a running herdr session) plus the worker CLIs from the config table. If `HERDR_ENV` is not `1`, stop and tell the user fleet mode needs herdr. Any primary harness running in a herdr pane can orchestrate (Claude Code, Codex, Pi, Grok Build): supervision goes through herdr watchers, not harness features; the enforcement hook covers Claude Code, Codex, and Grok Build (Pi is instruction-only).
+Requires `HERDR_ENV=1` (a running herdr session) plus the worker CLIs from the config table. If `HERDR_ENV` is not `1`, stop and tell the user fleet mode needs herdr. Any primary harness running in a herdr pane can orchestrate (Claude Code, Codex, Pi, Grok Build): supervision goes through herdr watchers, not harness features; the enforcement hook covers Claude Code, Codex, and Grok Build, and a Pi extension (`scripts/fleet-guard-pi.ts`) covers Pi.
 
 While active, this skill supersedes any skill that would have the main agent write code, delegate work elsewhere, or route tasks to other models, including any standalone herdr skill's "don't use for mere delegation" gate. Never use native Agent/subagent tools for task work; every task goes to a visible pane. Skills that shape *thinking* (specs, planning, review checklists, questioning) remain usable by the orchestrator; skills that shape *how code is written* (TDD, debugging loops) apply inside worker briefs.
 
@@ -38,17 +38,17 @@ Fixed rules:
 
 ## Activation
 
-1. Run `"<skill-dir>/scripts/fleet-mode.sh" on`. It is idempotent: gitignores and provisions `.fleet/` on first use, arms the guard, and reports how many task rows already exist. Repeat activations are a single `touch` inside the script — nothing to redo.
+1. Run `"<skill-dir>/scripts/fleet-mode.sh" on`. It is idempotent: gitignores and provisions `.fleet/` on first use, arms the guard, and reports how many task rows already exist. Repeat activations are a single `touch` inside the script — nothing to redo. It refuses to arm if `jq` is missing (the guard depends on it) and warns when no harness hook/extension config references `fleet-guard`; relay either message to the user.
 2. If it reports existing rows, reconcile: compare against live panes and surviving `fleet/*` branches; report orphans before taking new work.
 3. Announce: "Fleet mode active — I orchestrate, workers act."
 
 On "fleet off": wind down live workers (harvest or report), then run `"<skill-dir>/scripts/fleet-mode.sh" off` — it disarms the guard, prunes finished rows from `tasks.md`, and keeps `.fleet/` plus the pruned `tasks.md` (repeat activation keys on them). Run it **before** any other cleanup edits (the armed guard blocks in-place tools even on `.fleet/` files). Confirm in one line.
 
-On "fleet uninstall" (explicit user request only): run `"<skill-dir>/scripts/fleet-mode.sh" uninstall` — it refuses while fleet is active or unfinished rows remain, otherwise removes `.fleet/` and the gitignore entry. The harness hook entry stays (inert without the flag, shared across repos). Never remove `.fleet/` any other way.
+On "fleet uninstall" (explicit user request only): run `"<skill-dir>/scripts/fleet-mode.sh" uninstall` — it refuses while fleet is active or unfinished rows remain (listing their ids), otherwise removes `.fleet/` and the gitignore entry. If it refuses over unfinished rows, relay the ids and ask the user; for rows they abandon, mark them `abandoned` in `tasks.md`, run `off` to prune, then retry. The harness hook entry stays (inert without the flag, shared across repos). Never remove `.fleet/` any other way.
 
 ## Enforcement
 
-A PreToolUse hook (`scripts/fleet-guard.sh`) blocks the main agent's Edit/Write/NotebookEdit outside `.fleet/` and mutating Bash patterns whenever `<repo-root>/.fleet/active` exists; reads stay allowed so you can verify workers' output. A block means it is working as intended: dispatch a worker instead of retrying. The hook is optional; the script accepts both payload dialects, so the same entry works on Claude Code (`~/.claude/settings.json`, `hooks.PreToolUse`), Codex (`~/.codex/hooks.json`, `PreToolUse`), and Grok Build (a JSON file in `~/.grok/hooks/`). On Pi and elsewhere the no-direct-edits rule is honored by instruction. One-time wiring:
+A PreToolUse hook (`scripts/fleet-guard.sh`) blocks the main agent's Edit/Write/NotebookEdit outside `.fleet/` and mutating Bash patterns whenever `<repo-root>/.fleet/active` exists; reads stay allowed so you can verify workers' output. A block means it is working as intended: dispatch a worker instead of retrying. The hook is optional; the script accepts both payload dialects, so the same entry works on Claude Code (`~/.claude/settings.json`, `hooks.PreToolUse`), Codex (`~/.codex/hooks.json`, `PreToolUse`), and Grok Build (a JSON file in `~/.grok/hooks/`). On Pi, wire `scripts/fleet-guard-pi.ts` instead: copy or symlink it into `~/.pi/agent/extensions/` (auto-discovered, shared across repos, inert without the flag — same model as the hook). It enforces the same rules via Pi's `tool_call` block API, needs no `jq`, and shows a "fleet mode ON" status line in armed repos. On harnesses with neither hooks nor extensions the rule is honored by instruction. One-time wiring:
 
 ```json
 {

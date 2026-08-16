@@ -7,17 +7,26 @@
 set -euo pipefail
 
 input="$(cat)"
-command -v jq >/dev/null 2>&1 || exit 0
 
-cwd="$(jq -r '.cwd // empty' <<<"$input")"
+if command -v jq >/dev/null 2>&1; then
+  cwd="$(jq -r '.cwd // empty' <<<"$input")"
+else
+  # No jq: fall back to the hook's own cwd so an armed repo still fails loud.
+  cwd="$PWD"
+fi
 [ -n "$cwd" ] || exit 0
 root="$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null)" || root="$cwd"
 [ -f "$root/.fleet/active" ] || exit 0
 
+if ! command -v jq >/dev/null 2>&1; then
+  echo "fleet mode active but jq is missing — the guard cannot inspect tool calls. Install jq, or have the user say 'fleet off'." >&2
+  exit 2
+fi
+
 tool="$(jq -r '.tool_name // .toolName // empty' <<<"$input")"
 
 deny() {
-  echo "fleet mode active: $1 Dispatch a fleet worker instead. Only the user can deactivate (by saying 'fleet off')." >&2
+  echo "fleet mode active in $root: $1 Dispatch a fleet worker instead (run /fleet to resume orchestrating). Only the user can deactivate (by saying 'fleet off')." >&2
   exit 2
 }
 

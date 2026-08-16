@@ -15,6 +15,9 @@ task_rows() {
 
 case "${1:-}" in
   on)
+    # The guard and watcher both parse JSON with jq; without it enforcement
+    # would silently vanish, so refuse to arm at all.
+    command -v jq >/dev/null 2>&1 || { echo "fleet: jq is required (guard/watcher depend on it) — install jq first" >&2; exit 1; }
     # gitignore before arming: once .fleet/active exists the guard blocks this edit
     grep -qx '\.fleet/' "$root/.gitignore" 2>/dev/null || printf '\n.fleet/\n' >> "$root/.gitignore"
     mkdir -p "$fleet"
@@ -22,7 +25,10 @@ case "${1:-}" in
       printf '| id | shape | type | worker | status | pane | branch | base | updated |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- |\n' > "$tasks"
     fi
     touch "$fleet/active"
-    echo "fleet: on ($(task_rows) existing task rows — reconcile if > 0)"
+    hook_warn=""
+    grep -qs 'fleet-guard' "$HOME/.claude/settings.json" "$HOME/.codex/hooks.json" "$HOME"/.grok/hooks/*.json "$HOME"/.pi/agent/extensions/*.ts 2>/dev/null \
+      || hook_warn=" — WARNING: no harness hook/extension config references fleet-guard; enforcement is instruction-only"
+    echo "fleet: on ($(task_rows) existing task rows — reconcile if > 0)$hook_warn"
     ;;
   off)
     rm -f "$fleet/active"
@@ -43,7 +49,8 @@ case "${1:-}" in
       exit 1
     fi
     if [ "$(task_rows)" -gt 0 ]; then
-      echo "fleet: $(task_rows) unfinished task rows in $tasks — resolve or abandon them first" >&2
+      echo "fleet: $(task_rows) unfinished task rows in $tasks — resolve or abandon them first:" >&2
+      awk -F'|' '/^\|/ { n++; if (n > 2) { s = $2; gsub(/^[ \t]+|[ \t]+$/, "", s); print "  " s } }' "$tasks" >&2
       exit 1
     fi
     rm -rf "$fleet"
