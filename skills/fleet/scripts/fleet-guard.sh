@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # PreToolUse guard for fleet mode. Inert unless <repo-root>/.fleet/active exists.
-# Blocks the main agent's file mutations so task work goes to fleet workers.
+# Blocks the fleet-manager's file mutations so task work goes to fleet-workers.
 # Accepts Claude Code/Codex payloads (.tool_name/.tool_input, snake_case) and
 # Grok Build payloads (.toolName/.toolInput, camelCase).
 # Bash blocking is heuristic: it catches common write patterns, not all of them.
@@ -26,7 +26,7 @@ fi
 tool="$(jq -r '.tool_name // .toolName // empty' <<<"$input")"
 
 deny() {
-  echo "fleet mode active in $root: $1 Dispatch a fleet worker instead (run /fleet to resume orchestrating). Only the user can deactivate (by saying 'fleet off')." >&2
+  echo "fleet mode active in $root: $1 Dispatch a fleet-worker instead (run /fleet to resume orchestrating). Only the user can deactivate (by saying 'fleet off')." >&2
   exit 2
 }
 

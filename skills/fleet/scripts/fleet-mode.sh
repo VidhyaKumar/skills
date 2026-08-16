@@ -1,7 +1,7 @@
 #!/bin/sh
 # fleet-mode.sh on|off — deterministic fleet state transitions.
 # Run from anywhere inside the target repo. Prints one state line for the
-# orchestrator to relay. Never removes .fleet/ (fast repeat activation keys on it).
+# fleet-manager to relay. Never removes .fleet/ (fast repeat activation keys on it).
 set -eu
 
 root="$(git rev-parse --show-toplevel)"
@@ -22,13 +22,15 @@ case "${1:-}" in
     grep -qx '\.fleet/' "$root/.gitignore" 2>/dev/null || printf '\n.fleet/\n' >> "$root/.gitignore"
     mkdir -p "$fleet"
     if [ ! -f "$tasks" ]; then
-      printf '| id | shape | type | worker | status | pane | branch | base | updated |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- |\n' > "$tasks"
+      printf '| id | shape | fleet-worker | status | pane | branch | base | updated |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n' > "$tasks"
     fi
     touch "$fleet/active"
     hook_warn=""
     grep -qs 'fleet-guard' "$HOME/.claude/settings.json" "$HOME/.codex/hooks.json" "$HOME"/.grok/hooks/*.json "$HOME"/.pi/agent/extensions/*.ts 2>/dev/null \
       || hook_warn=" — WARNING: no harness hook/extension config references fleet-guard; enforcement is instruction-only"
-    echo "fleet: on ($(task_rows) existing task rows — reconcile if > 0)$hook_warn"
+    routing=""
+    [ -f "$fleet/config.md" ] || routing=", no fleet-worker config — ask the user (default: match fleet-manager)"
+    echo "fleet: on ($(task_rows) existing task rows — reconcile if > 0$routing)$hook_warn"
     ;;
   off)
     rm -f "$fleet/active"
@@ -37,7 +39,7 @@ case "${1:-}" in
         !/^\|/ { print; next }
         { n++ }
         n <= 2 { print; next }
-        { s = $6; gsub(/^[ \t]+|[ \t]+$/, "", s);
+        { s = $5; gsub(/^[ \t]+|[ \t]+$/, "", s);
           if (s != "merged" && s != "abandoned" && s != "done") print }
       ' "$tasks" > "$tasks.tmp" && mv "$tasks.tmp" "$tasks"
     fi

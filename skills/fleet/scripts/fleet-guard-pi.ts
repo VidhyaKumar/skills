@@ -1,6 +1,6 @@
 // fleet-guard-pi.ts — Pi harness guard for fleet mode.
 // Mirrors fleet-guard.sh: inert unless <repo-root>/.fleet/active exists.
-// Blocks the main agent's file mutations so task work goes to fleet workers.
+// Blocks the fleet-manager's file mutations so task work goes to fleet-workers.
 // Install: copy or symlink into ~/.pi/agent/extensions/ (global, recommended)
 // or .pi/extensions/ (project-local). Pi auto-discovers both.
 // Bash blocking is heuristic: it catches common write patterns, not all of them.
@@ -19,7 +19,7 @@ function fleetRoot(): string | null {
 }
 
 const DENY_SUFFIX =
-  "Dispatch a fleet worker instead (run /fleet to resume orchestrating). " +
+  "Dispatch a fleet-worker instead (run /fleet to resume orchestrating). " +
   "Only the user can deactivate (by saying 'fleet off').";
 
 export default function (pi: ExtensionAPI) {

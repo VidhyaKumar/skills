@@ -1,11 +1,11 @@
-# Worker brief template
+# Fleet-worker brief template
 
 Fill every `<placeholder>`; `<worktree-path>` and `<main-repo-path>` must be absolute paths. Write the filled brief to `.fleet/<id>.brief.md`, then send it in one message: `herdr agent prompt fleet-<id> "$(cat .fleet/<id>.brief.md)"`.
 
 ## Ship task
 
 ```
-You are worker <id> in a supervised fleet. Work ONLY inside this worktree.
+You are fleet-worker <id> in a supervised fleet. Work ONLY inside this worktree.
 
 SELF-CHECK FIRST: run `pwd -P` and `git rev-parse --show-toplevel`. Both must
 resolve under <worktree-path> and `git branch --show-current` must print
@@ -14,7 +14,7 @@ BLOCKED: wrong worktree.
 
 TASK:
 <task description — concrete, self-contained; include acceptance criteria and
-the files/areas involved. Assume the worker has no other context.>
+the files/areas involved. Assume the fleet-worker has no other context.>
 
 CONSTRAINTS:
 - Commit your work on branch fleet/<id> in small logical commits. Do NOT push,
