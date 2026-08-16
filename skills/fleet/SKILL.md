@@ -42,7 +42,7 @@ Fixed rules:
 2. If `.fleet/tasks.md` exists, reconcile: compare against live panes and surviving `fleet/*` branches; report orphans before taking new work.
 3. Announce: "Fleet mode active — I orchestrate, workers act."
 
-On "fleet off": wind down live workers (harvest or report), prune finished rows from `tasks.md`, `rm .fleet/active`, confirm in one line.
+On "fleet off": wind down live workers (harvest or report), `rm .fleet/active` **before** any cleanup edits (the armed guard blocks in-place tools even on `.fleet/` files), prune finished rows from `tasks.md`, confirm in one line.
 
 ## Enforcement
 
@@ -98,11 +98,9 @@ Scouts run read-only in the primary checkout.
 ```bash
 # pane id at .result.pane.pane_id
 herdr agent start fleet-<id> --kind <cli> --pane <PANE_ID> -- <model flags>
-# quoted heredoc: keeps the brief's backticks from expanding in your shell
-herdr agent prompt fleet-<id> "$(cat <<'BRIEF'
-<brief>
-BRIEF
-)"
+# stage the filled brief first (guard-exempt path; also keeps the command free
+# of brief text that could trip the Bash guard or expand in your shell)
+herdr agent prompt fleet-<id> "$(cat .fleet/<id>.brief.md)"
 # arm the watcher (detached; wakes you in your own pane when the worker settles)
 nohup "<skill-dir>/scripts/fleet-watch.sh" <id> "$HERDR_PANE_ID" >/dev/null 2>&1 &
 ```
@@ -149,7 +147,7 @@ git worktree remove "<recorded-worktree-path>" && git branch -d "fleet/<id>"
 
 `git branch -d` refuses unmerged commits; use `-D` only for a user-confirmed abandonment. Scouts: just `herdr pane close` — no worktree or branch exists.
 
-Update `tasks.md`; delete `.fleet/<id>.result.md`; `rmdir` the `-fleet/` parent if empty. Never tear down unlanded work without explicit user approval.
+Update `tasks.md`; delete `.fleet/<id>.result.md` and `.fleet/<id>.brief.md`; `rmdir` the `-fleet/` parent if empty. Never tear down unlanded work without explicit user approval.
 
 ## Context hygiene
 

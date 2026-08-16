@@ -27,6 +27,7 @@ case "$tool" in
       | (.file_path // .notebook_path // .filePath // .path // empty)' <<<"$input")"
     if [ -n "$file_path" ]; then
       case "$file_path" in
+        *..*) deny "direct file edits are blocked ($tool on $file_path)." ;;
         .fleet/*|*/.fleet/*) exit 0 ;;
         *) deny "direct file edits are blocked ($tool on $file_path)." ;;
       esac

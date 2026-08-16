@@ -1,6 +1,6 @@
 # Worker brief template
 
-Fill every `<placeholder>`; `<worktree-path>` and `<main-repo-path>` must be absolute paths. Send as a single `herdr agent prompt` message via a quoted heredoc so backticks survive.
+Fill every `<placeholder>`; `<worktree-path>` and `<main-repo-path>` must be absolute paths. Write the filled brief to `.fleet/<id>.brief.md`, then send it in one message: `herdr agent prompt fleet-<id> "$(cat .fleet/<id>.brief.md)"`.
 
 ## Ship task
 
