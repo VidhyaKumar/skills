@@ -43,15 +43,41 @@ bunx skills add VidhyaKumar/skills --skill '*' -a claude-code
 
 ```
 skills/
-  commit-all/SKILL.md
-  commit-staged/SKILL.md
-  create-pr/SKILL.md
-  review-changes/SKILL.md
-  code-slop-check/SKILL.md
+  commit-all/
+    SKILL.md
+    agents/
+      openai.yaml
+  commit-staged/
+    SKILL.md
+    agents/
+      openai.yaml
+  create-pr/
+    SKILL.md
+    agents/
+      openai.yaml
+  review-changes/
+    SKILL.md
+    agents/
+      openai.yaml
+  code-slop-check/
+    SKILL.md
+    agents/
+      openai.yaml
   prose-slop-check/
     SKILL.md
     eval.md
     references/
+      tells.md
+      voices.md
   happy-path-first/SKILL.md
+  attention-kind/SKILL.md
+  bro/SKILL.md
+  fleet/
+    SKILL.md
+    references/
+      worker-brief.md
+    scripts/
+      fleet-guard.sh
+      fleet-watch.sh
 skills.sh.json
 ```
