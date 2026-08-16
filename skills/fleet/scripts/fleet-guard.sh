@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # PreToolUse guard for fleet mode. Inert unless <repo-root>/.fleet/active exists.
 # Blocks the main agent's file mutations so task work goes to fleet workers.
+# Accepts Claude Code/Codex payloads (.tool_name/.tool_input, snake_case) and
+# Grok Build payloads (.toolName/.toolInput, camelCase).
 # Bash blocking is heuristic: it catches common write patterns, not all of them.
 set -euo pipefail
 
@@ -12,7 +14,7 @@ cwd="$(jq -r '.cwd // empty' <<<"$input")"
 root="$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null)" || root="$cwd"
 [ -f "$root/.fleet/active" ] || exit 0
 
-tool="$(jq -r '.tool_name // empty' <<<"$input")"
+tool="$(jq -r '.tool_name // .toolName // empty' <<<"$input")"
 
 deny() {
   echo "fleet mode active: $1 Dispatch a fleet worker instead. Only the user can deactivate (by saying 'fleet off')." >&2
@@ -20,15 +22,26 @@ deny() {
 }
 
 case "$tool" in
-  Edit|Write|NotebookEdit)
-    file_path="$(jq -r '.tool_input.file_path // .tool_input.notebook_path // empty' <<<"$input")"
-    case "$file_path" in
-      .fleet/*|*/.fleet/*) exit 0 ;;
-      *) deny "direct file edits are blocked ($tool on ${file_path:-unknown})." ;;
-    esac
+  Edit|Write|NotebookEdit|search_replace|apply_patch)
+    file_path="$(jq -r '(.tool_input // .toolInput // {})
+      | (.file_path // .notebook_path // .filePath // .path // empty)' <<<"$input")"
+    if [ -n "$file_path" ]; then
+      case "$file_path" in
+        .fleet/*|*/.fleet/*) exit 0 ;;
+        *) deny "direct file edits are blocked ($tool on $file_path)." ;;
+      esac
+    else
+      # Patch-body payloads (codex apply_patch) carry no path field; allow
+      # only if the body references .fleet/ at all. Heuristic, fail-open.
+      raw="$(jq -r '(.tool_input // .toolInput // {}) | tostring' <<<"$input")"
+      case "$raw" in
+        *.fleet/*) exit 0 ;;
+        *) deny "direct file edits are blocked ($tool)." ;;
+      esac
+    fi
     ;;
-  Bash)
-    cmd="$(jq -r '.tool_input.command // empty' <<<"$input")"
+  Bash|run_terminal_command)
+    cmd="$(jq -r '(.tool_input // .toolInput // {}) | .command // empty' <<<"$input")"
     # In-place editors and tee are always writes.
     if grep -qE '(^|[;&|[:space:]])(sed[[:space:]]+-[a-zA-Z]*i|perl[[:space:]]+-[a-zA-Z]*i|tee[[:space:]])' <<<"$cmd"; then
       deny "mutating shell command blocked (in-place edit/tee)."

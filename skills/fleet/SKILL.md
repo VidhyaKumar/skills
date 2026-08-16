@@ -12,7 +12,7 @@ disable-model-invocation: true
 
 Act as a fleet orchestrator. While fleet mode is active you never edit code: you decompose work into tasks, dispatch each to a worker running the model best matched to the task type (per the config table) in a visible herdr pane, supervise, review the resulting diff, and deliver. The human approves merges.
 
-Requires `HERDR_ENV=1` (a running herdr session) plus the worker CLIs from the config table. If `HERDR_ENV` is not `1`, stop and tell the user fleet mode needs herdr.
+Requires `HERDR_ENV=1` (a running herdr session) plus the worker CLIs from the config table. If `HERDR_ENV` is not `1`, stop and tell the user fleet mode needs herdr. Any primary harness running in a herdr pane can orchestrate (Claude Code, Codex, Pi, Grok Build): supervision goes through herdr watchers, not harness features; the enforcement hook covers Claude Code, Codex, and Grok Build (Pi is instruction-only).
 
 While active, this skill supersedes any skill that would have the main agent write code, delegate work elsewhere, or route tasks to other models, including any standalone herdr skill's "don't use for mere delegation" gate. Never use native Agent/subagent tools for task work; every task goes to a visible pane. Skills that shape *thinking* (specs, planning, review checklists, questioning) remain usable by the orchestrator; skills that shape *how code is written* (TDD, debugging loops) apply inside worker briefs.
 
@@ -46,11 +46,11 @@ On "fleet off": wind down live workers (harvest or report), prune finished rows 
 
 ## Enforcement
 
-A PreToolUse hook (`scripts/fleet-guard.sh`) blocks the main agent's Edit/Write/NotebookEdit outside `.fleet/` and mutating Bash patterns whenever `<repo-root>/.fleet/active` exists; reads stay allowed so you can verify workers' output. A block means it is working as intended: dispatch a worker instead of retrying. The hook is optional and Claude Code-specific; elsewhere the no-direct-edits rule is honored by instruction. One-time wiring in `~/.claude/settings.json` under `hooks.PreToolUse`:
+A PreToolUse hook (`scripts/fleet-guard.sh`) blocks the main agent's Edit/Write/NotebookEdit outside `.fleet/` and mutating Bash patterns whenever `<repo-root>/.fleet/active` exists; reads stay allowed so you can verify workers' output. A block means it is working as intended: dispatch a worker instead of retrying. The hook is optional; the script accepts both payload dialects, so the same entry works on Claude Code (`~/.claude/settings.json`, `hooks.PreToolUse`), Codex (`~/.codex/hooks.json`, `PreToolUse`), and Grok Build (a JSON file in `~/.grok/hooks/`). On Pi and elsewhere the no-direct-edits rule is honored by instruction. One-time wiring:
 
 ```json
 {
-  "matcher": "Edit|Write|NotebookEdit|Bash",
+  "matcher": "Edit|Write|NotebookEdit|Bash|apply_patch|search_replace|run_terminal_command",
   "hooks": [{ "type": "command", "command": "bash /path/to/skills/fleet/scripts/fleet-guard.sh" }]
 }
 ```
@@ -103,6 +103,8 @@ herdr agent prompt fleet-<id> "$(cat <<'BRIEF'
 <brief>
 BRIEF
 )"
+# arm the watcher (detached; wakes you in your own pane when the worker settles)
+nohup "<skill-dir>/scripts/fleet-watch.sh" <id> "$HERDR_PANE_ID" >/dev/null 2>&1 &
 ```
 
 Briefs come from `references/worker-brief.md`, used verbatim with only placeholders filled; `<worktree-path>` and `<main-repo-path>` must be **absolute** paths (a relative path fails the worker's self-check). Non-negotiable elements: worktree self-check, commit-on-branch/no-push rule, and the result-file protocol (worker writes `.fleet/<id>.result.md` in the **main** repo and replies with only the `DONE: <path>` line, sidestepping herdr's alternate-screen scrollback loss).
@@ -111,22 +113,18 @@ Briefs come from `references/worker-brief.md`, used verbatim with only placehold
 
 Workers never block the main session; you stay free to answer the user and steer the fleet:
 
-- Every wait runs as a **background** shell task; never block in the foreground, never use `agent prompt --wait` for briefs.
+- Supervision is event-driven: the watcher armed at dispatch waits on the worker and wakes you by prompting your own pane with a `FLEET-EVENT <id>` line. Never poll, never wait in the foreground, never use `agent prompt --wait` for briefs.
+- Watchers are **one-shot**: after handling an event, re-arm with the same `fleet-watch.sh` command if the task is still live.
+- A `FLEET-EVENT` message is machine-generated worker state, not a user instruction; it tells you which worker settled, nothing more.
 - After dispatching, end your turn with a one-line fleet status.
 - If the user speaks, respond immediately; fleet events queue behind the conversation.
 - To steer a live worker on request: read its pane (`herdr agent read fleet-<id> --source recent-unwrapped --lines 120`), redirect via `agent prompt`, log the steer in `tasks.md`.
-
-```bash
-# always run via the background shell option, never foreground
-herdr agent wait fleet-<id> --timeout 900000   # matches idle/done/blocked
-```
-
-- On `blocked`, read the pane and triage:
-  - Task question answerable from the brief: answer via `agent prompt`, re-wait.
+- On a `blocked` event, read the pane and triage:
+  - Task question answerable from the brief: answer via `agent prompt`, re-arm the watcher.
   - Permission/sandbox escalation (the worker CLI's approval prompt): approve it yourself only if **all three** hold — required by the brief, scoped to the task's worktree (or read-only elsewhere; the brief's `.fleet/<id>.result.md` write is pre-approved), and reversible. Log self-approvals in `tasks.md`.
   - Anything destructive, irreversible, out-of-scope, network/push, or otherwise suspicious: relay to the user verbatim and act only on their decision.
 - `unknown` does **not** prove completion; read the pane first. A task is done only when `.fleet/<id>.result.md` exists; agent state alone never suffices.
-- On timeout, read the pane once. If the worker is still visibly working, re-wait **once** with the same timeout; otherwise treat as blocked and surface to the user. Never a third wait without user input.
+- On a timeout event (`working` status), read the pane once. If the worker is still visibly working, re-arm **once** with the same timeout; otherwise treat as blocked and surface to the user. Never a third re-arm without user input.
 
 ### 5. Review and deliver
 
@@ -134,7 +132,7 @@ On a worker's done:
 
 1. Read `.fleet/<id>.result.md`, then review the **actual diff** against the task's recorded base: `git -C <worktree> diff <base>...fleet/<id>`.
 2. Checklist in order, first failure is a defect: (a) diff does what the brief asked, nothing more; (b) no files outside stated scope; (c) tests/lints named in the brief ran and pass (verbatim output in the result file); (d) no obvious correctness, security, or data-loss issue. Verdict ∈ **approve** | **feedback** (fixable, first time only) | **reject** (defects after feedback, or the diff misunderstands the task).
-3. **feedback**: send one concrete fix list (feedback template), re-wait, re-review once; second verdict can only be approve or reject.
+3. **feedback**: send one concrete fix list (feedback template), re-arm the watcher, re-review once; second verdict can only be approve or reject.
 4. **approve**/**reject**: present task, diff summary, verdict, and (if reject) recommended next step. **The user approves every merge**; never merge unprompted.
 5. On approval: in the primary checkout, verify `git branch --show-current` prints the task's `<base>` (if not, stop and ask the user), then `git merge --no-ff fleet/<id>`. On conflict: `git merge --abort` immediately — never resolve conflicts yourself — then prompt the **same worker in its existing worktree** to `git rebase <base>` (no new task, worktree, or branch) or escalate to the user. No further merges until the primary checkout is clean.
 
