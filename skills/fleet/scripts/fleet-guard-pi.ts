@@ -51,12 +51,18 @@ export default function (pi: ExtensionAPI) {
       // inside a git --format string) can't trip the heuristics. A placeholder,
       // not deletion: `echo x > "file"` must still look like a redirection.
       const stripped = cmd.replace(/'[^']*'/g, "Q").replace(/"[^"]*"/g, "Q");
+      // Nested shells (bash -c '...') execute their quoted payload, so stripping
+      // would let a smuggled redirect through — check those against the raw
+      // command instead (conservative: quoted '>' may false-positive there).
+      const check = /(^|[;&|\s])(bash|sh|zsh|dash|ksh|env)\s[^;&|]*-[a-zA-Z]*c(\s|$)/.test(stripped)
+        ? cmd
+        : stripped;
       // In-place editors and tee are always writes.
-      if (/(^|[;&|\s])(sed\s+-[a-zA-Z]*i|perl\s+-[a-zA-Z]*i|tee\s)/.test(stripped)) {
+      if (/(^|[;&|\s'"])(sed\s+-[a-zA-Z]*i|perl\s+-[a-zA-Z]*i|tee\s)/.test(check)) {
         return deny("mutating shell command blocked (in-place edit/tee).");
       }
       // Redirection into files, unless the target is .fleet/, /tmp, or /dev/null.
-      if (/>>?\s*[^&|\s]/.test(stripped) && !/>>?\s*([^\s]*\.fleet\/|\/tmp\/|\/dev\/null)/.test(stripped)) {
+      if (/>>?\s*[^&|\s]/.test(check) && !/>>?\s*([^\s]*\.fleet\/|\/tmp\/|\/dev\/null)/.test(check)) {
         return deny("shell redirection into a file blocked.");
       }
     }

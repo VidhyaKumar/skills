@@ -56,13 +56,20 @@ case "$tool" in
     # inside a git --format string) can't trip the heuristics. A placeholder,
     # not deletion: `echo x > "file"` must still look like a redirection.
     stripped="$(sed -E "s/'[^']*'/Q/g; s/\"[^\"]*\"/Q/g" <<<"$cmd")"
+    # Nested shells (bash -c '...') execute their quoted payload, so stripping
+    # would let a smuggled redirect through — check those against the raw
+    # command instead (conservative: quoted '>' may false-positive there).
+    check="$stripped"
+    if grep -qE '(^|[;&|[:space:]])(bash|sh|zsh|dash|ksh|env)[[:space:]][^;&|]*-[a-zA-Z]*c([[:space:]]|$)' <<<"$stripped"; then
+      check="$cmd"
+    fi
     # In-place editors and tee are always writes.
-    if grep -qE '(^|[;&|[:space:]])(sed[[:space:]]+-[a-zA-Z]*i|perl[[:space:]]+-[a-zA-Z]*i|tee[[:space:]])' <<<"$stripped"; then
+    if grep -qE "(^|[;&|[:space:]'\"])(sed[[:space:]]+-[a-zA-Z]*i|perl[[:space:]]+-[a-zA-Z]*i|tee[[:space:]])" <<<"$check"; then
       deny "mutating shell command blocked (in-place edit/tee)."
     fi
     # Redirection into files, unless the target is .fleet/, /tmp, or /dev/null.
-    if grep -qE '>>?[[:space:]]*[^&|[:space:]]' <<<"$stripped" \
-      && ! grep -qE '>>?[[:space:]]*([^[:space:]]*\.fleet/|/tmp/|/dev/null)' <<<"$stripped"; then
+    if grep -qE '>>?[[:space:]]*[^&|[:space:]]' <<<"$check" \
+      && ! grep -qE '>>?[[:space:]]*([^[:space:]]*\.fleet/|/tmp/|/dev/null)' <<<"$check"; then
       deny "shell redirection into a file blocked."
     fi
     exit 0
