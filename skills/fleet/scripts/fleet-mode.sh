@@ -22,9 +22,17 @@ case "${1:-}" in
     grep -qx '\.fleet/' "$root/.gitignore" 2>/dev/null || printf '\n.fleet/\n' >> "$root/.gitignore"
     mkdir -p "$fleet"
     if [ ! -f "$tasks" ]; then
-      printf '| id | shape | fleet-worker | status | pane | branch | base | updated |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n' > "$tasks"
+      printf '| id | shape | fleet-worker | status | tab | branch | base | updated |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n' > "$tasks"
     fi
     touch "$fleet/active"
+    # role-based names: fleet-manager tab/agent = fm-<project> (fleet-workers
+    # get fw-<project>-<id> at dispatch)
+    if [ -n "${HERDR_PANE_ID:-}" ]; then
+      tab="$(herdr pane list 2>/dev/null | jq -r --arg p "$HERDR_PANE_ID" \
+        '.result.panes[] | select(.pane_id==$p) | .tab_id' 2>/dev/null)" || tab=""
+      if [ -n "$tab" ]; then herdr tab rename "$tab" "fm-$(basename "$root")" >/dev/null 2>&1 || true; fi
+      herdr agent rename "$HERDR_PANE_ID" "fm-$(basename "$root")" >/dev/null 2>&1 || true
+    fi
     hook_warn=""
     grep -qs 'fleet-guard' "$HOME/.claude/settings.json" "$HOME/.codex/hooks.json" "$HOME"/.grok/hooks/*.json "$HOME"/.pi/agent/extensions/*.ts 2>/dev/null \
       || hook_warn=" — WARNING: no harness hook/extension config references fleet-guard; enforcement is instruction-only"

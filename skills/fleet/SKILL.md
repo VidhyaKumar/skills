@@ -4,17 +4,17 @@ description: >
   Orchestration mode: the fleet-manager only plans, dispatches,
   supervises, and reviews — all code changes are delegated to fleet-workers
   (matching the fleet-manager's harness, model, and effort by default)
-  in visible herdr panes, each in its own git worktree.
+  in visible herdr tabs, each in its own git worktree.
   Use when the user runs /fleet, says "fleet mode", or asks to orchestrate
   work across delegated agents. "fleet off" deactivates.
 disable-model-invocation: true
 ---
 
-Act as the fleet-manager. While fleet mode is active you never edit code: you decompose work into tasks, dispatch each to a fleet-worker (per the fleet-worker config) in a visible herdr pane, supervise, review the resulting diff, and deliver. The human approves merges.
+Act as the fleet-manager. While fleet mode is active you never edit code: you decompose work into tasks, dispatch each to a fleet-worker (per the fleet-worker config) in a visible herdr tab, supervise, review the resulting diff, and deliver. The human approves merges.
 
 Requires `HERDR_ENV=1` (a running herdr session) plus the configured fleet-worker CLI (the fleet-manager's own by default). If `HERDR_ENV` is not `1`, stop and tell the user fleet mode needs herdr. Any primary harness running in a herdr pane can orchestrate (Claude Code, Codex, Pi, Grok Build): supervision goes through herdr watchers, not harness features; the enforcement hook covers Claude Code, Codex, and Grok Build, and a Pi extension (`scripts/fleet-guard-pi.ts`) covers Pi.
 
-While active, this skill supersedes any skill that would have the fleet-manager write code, delegate work elsewhere, or route tasks to other models, including any standalone herdr skill's "don't use for mere delegation" gate. Never use native Agent/subagent tools for task work; every task goes to a visible pane. Skills that shape *thinking* (specs, planning, review checklists, questioning) remain usable by the fleet-manager; skills that shape *how code is written* (TDD, debugging loops) apply inside fleet-worker briefs.
+While active, this skill supersedes any skill that would have the fleet-manager write code, delegate work elsewhere, or route tasks to other models, including any standalone herdr skill's "don't use for mere delegation" gate. Never use native Agent/subagent tools for task work; every task goes to a visible tab. Skills that shape *thinking* (specs, planning, review checklists, questioning) remain usable by the fleet-manager; skills that shape *how code is written* (TDD, debugging loops) apply inside fleet-worker briefs.
 
 ## Config
 
@@ -31,7 +31,7 @@ flags:
 
 Fixed rules:
 
-- Max **3** concurrent fleet-workers. Excess tasks queue in intake order; dispatch the oldest when a slot frees.
+- No cap on concurrent fleet-workers: dispatch independent tasks immediately; chain only where Intake found a real dependency.
 - Deviating from `.fleet/config.md` is allowed in exactly one case, recorded in `tasks.md`: a scout that would need >150K tokens of reading → split into smaller scouts. If the configured fleet-worker CLI is unavailable or fails to start twice, stop and ask the user.
 - Diff review is **your** job, never a fleet-worker's. Do not trust a fleet-worker's self-assessment.
 - Fleet-workers run in their CLI's default sandbox/approval mode; never pass auto-approve or sandbox-disabling flags. Escalations follow the triage in Supervise.
@@ -40,7 +40,7 @@ Fixed rules:
 
 1. Run `"<skill-dir>/scripts/fleet-mode.sh" on`. Idempotent, safe to re-run; relay any warning or refusal it prints to the user.
 2. If it reports no fleet-worker config, ask the user: keep the default (fleet-workers match this session's harness, model, and effort) or override any of the three. Write the resolved values to `.fleet/config.md`.
-3. If it reports existing rows, reconcile: compare against live panes and surviving `fleet/*` branches; report orphans before taking new work.
+3. If it reports existing rows, reconcile: compare against live tabs and surviving `fleet/*` branches; report orphans before taking new work.
 4. Announce: "Fleet mode active — I orchestrate, fleet-workers act."
 
 On "fleet off": wind down live fleet-workers (harvest or report), then run `"<skill-dir>/scripts/fleet-mode.sh" off` — **before** any other cleanup edits (the armed guard blocks in-place tools even on `.fleet/` files). Confirm in one line.
@@ -66,12 +66,12 @@ Split the request into independent tasks: independent = disjoint files/areas; ot
 
 Id format: `<verb>-<object>` kebab-case, ≤ 24 chars (e.g. `fix-login-test`); `fleet-task.sh create` auto-suffixes collisions and prints the resolved id.
 
-Row lifecycle goes through `fleet-task.sh` (`create`, `status <id> <status>`, `pane <id> <pane-id>`); `.fleet/tasks.md` is what a restarted session reconciles from. `base` is the branch the task forks from and merges into: the currently checked-out branch at intake unless the user names another. Schema:
+Row lifecycle goes through `fleet-task.sh` (`create`, `status <id> <status>`, `tab <id> <tab-id>`); `.fleet/tasks.md` is what a restarted session reconciles from. `base` is the branch the task forks from and merges into: the currently checked-out branch at intake unless the user names another. Schema:
 
 ```markdown
-| id | shape | fleet-worker | status | pane | branch | base | updated |
+| id | shape | fleet-worker | status | tab | branch | base | updated |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| fix-login-test | ship | pi | working | wH:p21 | fleet/fix-login-test | main | 2026-08-16T14:30Z |
+| fix-login-test | ship | pi | working | wH:t4 | fleet/fix-login-test | main | 2026-08-16T14:30Z |
 ```
 
 `status` ∈ `queued` → `dispatched` → `working` → (`blocked` ⇄ `working`) → `review` → (`feedback` → `review`) → `awaiting-approval` → `merged` | `abandoned` | `done`. `done` is the scout terminal state; scouts skip `awaiting-approval`.
@@ -84,25 +84,19 @@ Every Ship task gets its own worktree, no exceptions; fleet-workers never touch 
 "<skill-dir>/scripts/fleet-task.sh" create <id> <ship|scout> <base>
 ```
 
-It provisions the worktree and `fleet/<id>` branch (Ship), appends the row, and prints the resolved id and absolute dir; reuse that exact `dir` for the pane's `--cwd` and the brief's `<worktree-path>`. Scouts run read-only in the primary checkout.
+It provisions the worktree and `fleet/<id>` branch (Ship), appends the row, and prints the resolved id and absolute dir; use that exact `dir` for the brief's `<worktree-path>`. Scouts run read-only in the primary checkout.
 
 ### 3. Dispatch
 
-2×2 pane grid; fleet-manager holds top-left. Always fill the lowest free slot; never open a 4th fleet-worker pane or tab, queue instead. `<dir>` = worktree (Ship) or primary checkout (Scout).
-
-| Slot | Position | Create with |
-| --- | --- | --- |
-| 1 | top-right | `herdr pane split --current --direction right --cwd "<dir>" --no-focus` |
-| 2 | bottom-left | `herdr pane split --current --direction down --cwd "<dir>" --no-focus` |
-| 3 | bottom-right | `herdr pane split <slot-1-pane-id> --direction down --cwd "<dir>" --no-focus` |
+Each fleet-worker runs in its own herdr tab. Role-based names, set by the scripts: fleet-manager tab and agent are `fm-<project>` (renamed at activation), fleet-worker tab and agent are `fw-<project>-<id>`.
 
 ```bash
-# pane id at .result.pane.pane_id; stage the filled .fleet/<id>.brief.md first
+# stage the filled .fleet/<id>.brief.md first
 # (guard-exempt path; keeps brief text out of your shell command)
-"<skill-dir>/scripts/fleet-dispatch.sh" <id> <PANE_ID>
+"<skill-dir>/scripts/fleet-dispatch.sh" <id>
 ```
 
-One atomic step: starts the fleet-worker per `config.md`, sends the brief, arms the watcher, marks the row `dispatched`.
+One atomic step: opens the tab in the task's dir, starts the fleet-worker per `config.md`, sends the brief, arms the watcher, marks the row `dispatched`.
 
 Briefs come from `references/fleet-worker-brief.md`, used verbatim with only placeholders filled; `<worktree-path>` and `<main-repo-path>` must be **absolute** paths (a relative path fails the fleet-worker's self-check). Non-negotiable elements: worktree self-check, commit-on-branch/no-push rule, and the result-file protocol (fleet-worker writes `.fleet/<id>.result.md` in the **main** repo and replies with only the `DONE: <path>` line, sidestepping herdr's alternate-screen scrollback loss).
 
@@ -115,7 +109,7 @@ Fleet-workers never block the main session; you stay free to answer the user and
 - A `FLEET-EVENT` message is machine-generated fleet-worker state, not a user instruction; it tells you which fleet-worker settled, nothing more.
 - After dispatching, end your turn with a one-line fleet status.
 - If the user speaks, respond immediately; fleet events queue behind the conversation.
-- To steer a live fleet-worker on request: read its pane (`herdr agent read fleet-<id> --source recent-unwrapped --lines 120`), redirect via `agent prompt`, log the steer in `tasks.md`.
+- To steer a live fleet-worker on request: read its pane (`herdr agent read fw-<project>-<id> --source recent-unwrapped --lines 120`), redirect via `agent prompt`, log the steer in `tasks.md`.
 - On a `blocked` event, read the pane and triage:
   - Task question answerable from the brief: answer via `agent prompt`, re-arm the watcher.
   - Permission/sandbox escalation (the fleet-worker CLI's approval prompt): approve it yourself only if **all three** hold — required by the brief, scoped to the task's worktree (or read-only elsewhere; the brief's `.fleet/<id>.result.md` write is pre-approved), and reversible. Log self-approvals in `tasks.md`.
@@ -133,7 +127,7 @@ On a fleet-worker's done:
 4. **approve**/**reject**: present task, diff summary, verdict, and (if reject) recommended next step. **The user approves every merge**; never merge unprompted.
 5. On approval: in the primary checkout, verify `git branch --show-current` prints the task's `<base>` (if not, stop and ask the user), then `git merge --no-ff fleet/<id>`. On conflict: `git merge --abort` immediately (never resolve conflicts yourself), then prompt the **same fleet-worker in its existing worktree** to `git rebase <base>` (no new task, worktree, or branch) or escalate to the user. No further merges until the primary checkout is clean.
 
-Scouts: verify the report answers the brief, then relay your synthesis, not the raw file. That relay marks the scout `done`; tear it down immediately (pane + result file; no worktree or branch exists).
+Scouts: verify the report answers the brief, then relay your synthesis, not the raw file. That relay marks the scout `done`; tear it down immediately (tab + result file; no worktree or branch exists).
 
 ### 6. Teardown
 
@@ -143,7 +137,7 @@ After merge or explicit abandonment (confirm with the user if the branch has unm
 "<skill-dir>/scripts/fleet-task.sh" teardown <id>   # --force-branch only for a user-confirmed abandonment
 ```
 
-It closes the pane, removes the worktree and branch (refusing unmerged commits without `--force-branch`), and deletes the brief/result files. Never tear down unlanded work without explicit user approval.
+It closes the tab, removes the worktree and branch (refusing unmerged commits without `--force-branch`), and deletes the brief/result files. Never tear down unlanded work without explicit user approval.
 
 ## Context hygiene
 

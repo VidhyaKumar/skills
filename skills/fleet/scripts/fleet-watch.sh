@@ -10,12 +10,14 @@ id="${1:?task id required}"
 orch="${2:?fleet-manager pane id required}"
 timeout="${3:-900000}"
 
-herdr agent wait "fleet-$id" --timeout "$timeout" >/dev/null 2>&1
+agent="fw-$(basename "$(git rev-parse --show-toplevel)")-$id"
+
+herdr agent wait "$agent" --timeout "$timeout" >/dev/null 2>&1
 code=$?
 
 status=""
 if command -v jq >/dev/null 2>&1; then
-  status="$(herdr agent get "fleet-$id" 2>/dev/null \
+  status="$(herdr agent get "$agent" 2>/dev/null \
     | jq -r '.result.agent.agent_status // empty')" || status=""
 fi
 [ -n "$status" ] || status="gone-or-unreadable"

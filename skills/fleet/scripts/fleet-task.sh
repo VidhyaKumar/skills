@@ -3,8 +3,9 @@
 #   create <id> <shape> <base>      provision worktree+branch (ship), append row;
 #                                   prints resolved id (collisions auto-suffixed) and dir
 #   status <id> <status>            set status, bump updated timestamp
-#   pane <id> <pane-id>             record the fleet-worker's pane
-#   teardown <id> [--force-branch]  close pane, remove worktree+branch, delete
+#   tab <id> <tab-id>               record the fleet-worker's tab
+#   dir <id>                        print the task's working dir (worktree or root)
+#   teardown <id> [--force-branch]  close tab, remove worktree+branch, delete
 #                                   brief/result files; row stays for off-prune
 set -eu
 
@@ -74,19 +75,30 @@ case "${1:-}" in
     update_col "$id" 5 "$st"
     echo "fleet-task: $id -> $st"
     ;;
-  pane)
-    id="${2:?id}"; p="${3:?pane id}"
+  tab)
+    id="${2:?id}"; t="${3:?tab id}"
     have_id "$id" || die "no row for '$id'"
-    update_col "$id" 6 "$p"
-    echo "fleet-task: $id pane $p"
+    update_col "$id" 6 "$t"
+    echo "fleet-task: $id tab $t"
+    ;;
+  dir)
+    id="${2:?id}"
+    have_id "$id" || die "no row for '$id'"
+    if [ "$(field "$id" 3)" = "ship" ]; then
+      d="$(wt_parent)/$id"
+      [ -d "$d" ] || die "worktree $d missing — was it created?"
+      echo "$d"
+    else
+      echo "$root"
+    fi
     ;;
   teardown)
     id="${2:?id}"; force="${3:-}"
     have_id "$id" || die "no row for '$id'"
-    shape="$(field "$id" 3)"; pane="$(field "$id" 6)"
-    if [ "$pane" != "-" ] && [ -n "$pane" ]; then
-      herdr pane close "$pane" >/dev/null 2>&1 \
-        || echo "fleet-task: warn — pane $pane not closed (already gone?)" >&2
+    shape="$(field "$id" 3)"; tab="$(field "$id" 6)"
+    if [ "$tab" != "-" ] && [ -n "$tab" ]; then
+      herdr tab close "$tab" >/dev/null 2>&1 \
+        || echo "fleet-task: warn — tab $tab not closed (already gone?)" >&2
     fi
     if [ "$shape" = "ship" ]; then
       parent="$(wt_parent)"
@@ -104,7 +116,7 @@ case "${1:-}" in
     echo "fleet-task: $id torn down"
     ;;
   *)
-    echo "usage: fleet-task.sh create <id> <ship|scout> <base> | status <id> <status> | pane <id> <pane-id> | teardown <id> [--force-branch]" >&2
+    echo "usage: fleet-task.sh create <id> <ship|scout> <base> | status <id> <status> | tab <id> <tab-id> | dir <id> | teardown <id> [--force-branch]" >&2
     exit 64
     ;;
 esac

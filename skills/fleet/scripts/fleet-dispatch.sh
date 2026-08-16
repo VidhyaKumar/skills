@@ -1,12 +1,12 @@
 #!/bin/sh
-# fleet-dispatch.sh <id> <pane-id> — one atomic dispatch: start the fleet-worker
-# per .fleet/config.md, send its staged brief, arm the watcher, mark the row
-# dispatched. Requires an existing row (fleet-task.sh create), the filled
-# .fleet/<id>.brief.md, and HERDR_PANE_ID (the fleet-manager's own pane).
+# fleet-dispatch.sh <id> — one atomic dispatch: open a tab in the task's dir,
+# start the fleet-worker per .fleet/config.md, send its staged brief, arm the
+# watcher, mark the row dispatched. Requires an existing row (fleet-task.sh
+# create), the filled .fleet/<id>.brief.md, and HERDR_PANE_ID (the
+# fleet-manager's own pane).
 set -eu
 
 id="${1:?task id}"
-pane="${2:?fleet-worker pane id}"
 
 root="$(git rev-parse --show-toplevel)"
 fleet="$root/.fleet"
@@ -36,10 +36,17 @@ case "$kind" in
           set -- ;;
 esac
 
+name="fw-$(basename "$root")-$id"
+dir="$(sh "$sdir/fleet-task.sh" dir "$id")"
+created="$(herdr tab create --cwd "$dir" --label "$name" --no-focus)"
+tab="$(printf %s "$created" | jq -r '.result.tab.tab_id // empty')"
+pane="$(printf %s "$created" | jq -r '.result.root_pane.pane_id // empty')"
+[ -n "$tab" ] && [ -n "$pane" ] || die "tab create failed: $created"
+
 # $extra unquoted on purpose: 'flags:' is a whitespace-separated argument list
-herdr agent start "fleet-$id" --kind "$kind" --pane "$pane" -- "$@" $extra
-herdr agent prompt "fleet-$id" "$(cat "$brief")"
+herdr agent start "$name" --kind "$kind" --pane "$pane" -- "$@" $extra
+herdr agent prompt "$name" "$(cat "$brief")"
 nohup bash "$sdir/fleet-watch.sh" "$id" "$HERDR_PANE_ID" >/dev/null 2>&1 &
-sh "$sdir/fleet-task.sh" pane "$id" "$pane" >/dev/null
+sh "$sdir/fleet-task.sh" tab "$id" "$tab" >/dev/null
 sh "$sdir/fleet-task.sh" status "$id" dispatched >/dev/null
-echo "fleet-dispatch: $id -> $kind in pane $pane (brief sent, watcher armed)"
+echo "fleet-dispatch: $id -> $kind in tab $tab (brief sent, watcher armed)"
