@@ -38,15 +38,13 @@ Fixed rules:
 
 ## Activation
 
-**Fast path (repeat activation):** if `.fleet/` already exists and `tasks.md` has no task rows, run `touch .fleet/active` from the repo root, announce, and skip everything else.
-
-Otherwise:
-
-1. First activation only (no `.fleet/` dir): ensure `.fleet/` is gitignored; append if not. Then, from the repo root (`git rev-parse --show-toplevel`; the guard checks the root, not your cwd): `mkdir -p .fleet && touch .fleet/active` (arms the hook — the gitignore edit must come first, the armed hook blocks it).
-2. If `tasks.md` has task rows, reconcile: compare against live panes and surviving `fleet/*` branches; report orphans before taking new work.
+1. Run `"<skill-dir>/scripts/fleet-mode.sh" on`. It is idempotent: gitignores and provisions `.fleet/` on first use, arms the guard, and reports how many task rows already exist. Repeat activations are a single `touch` inside the script — nothing to redo.
+2. If it reports existing rows, reconcile: compare against live panes and surviving `fleet/*` branches; report orphans before taking new work.
 3. Announce: "Fleet mode active — I orchestrate, workers act."
 
-On "fleet off": wind down live workers (harvest or report), `rm .fleet/active` **before** any cleanup edits (the armed guard blocks in-place tools even on `.fleet/` files), prune finished rows from `tasks.md`, confirm in one line.
+On "fleet off": wind down live workers (harvest or report), then run `"<skill-dir>/scripts/fleet-mode.sh" off` — it disarms the guard, prunes finished rows from `tasks.md`, and keeps `.fleet/` plus the pruned `tasks.md` (repeat activation keys on them). Run it **before** any other cleanup edits (the armed guard blocks in-place tools even on `.fleet/` files). Confirm in one line.
+
+On "fleet uninstall" (explicit user request only): run `"<skill-dir>/scripts/fleet-mode.sh" uninstall` — it refuses while fleet is active or unfinished rows remain, otherwise removes `.fleet/` and the gitignore entry. The harness hook entry stays (inert without the flag, shared across repos). Never remove `.fleet/` any other way.
 
 ## Enforcement
 
