@@ -27,7 +27,7 @@ effort: xhigh
 flags:
 ```
 
-`kind` matches herdr's `--kind` flag (the fleet-worker harness); `model` and `effort` are translated into that CLI's own flags at dispatch (pi `--model <model>:<effort>`, codex `-m <model> -c model_reasoning_effort="<effort>"`, grok `-m <model> --reasoning-effort <effort>`, claude `--model <model>`); `flags` is optional extra CLI arguments appended verbatim. `effort` also fills `<effort>` in briefs. Record resolved values, never "match the fleet-manager" — a later session may run a different model. Pi fleet-workers coexist with the fleet-guard-pi extension: worktrees have no `.fleet/active`, so Ship fleet-workers run unguarded, and a scout's `.fleet/<id>.result.md` write in the primary checkout is exempt.
+`kind` matches herdr's `--kind` flag (the fleet-worker harness); `model` and `effort` are translated into that CLI's own flags by `fleet-dispatch.sh` (for kinds it doesn't know, put the model/effort flags in `flags` instead); `flags` is optional extra CLI arguments appended verbatim. `effort` also fills `<effort>` in briefs. Record resolved values, never "match the fleet-manager" — a later session may run a different model. Pi fleet-workers coexist with the fleet-guard-pi extension: worktrees have no `.fleet/active`, so Ship fleet-workers run unguarded, and a scout's `.fleet/<id>.result.md` write in the primary checkout is exempt.
 
 Fixed rules:
 
@@ -38,14 +38,14 @@ Fixed rules:
 
 ## Activation
 
-1. Run `"<skill-dir>/scripts/fleet-mode.sh" on`. It is idempotent: gitignores and provisions `.fleet/` on first use, arms the guard, and reports how many task rows already exist. Repeat activations are a single `touch` inside the script — nothing to redo. It refuses to arm if `jq` is missing (the guard depends on it) and warns when no harness hook/extension config references `fleet-guard`; relay either message to the user.
+1. Run `"<skill-dir>/scripts/fleet-mode.sh" on`. Idempotent, safe to re-run; relay any warning or refusal it prints to the user.
 2. If it reports no fleet-worker config, ask the user: keep the default (fleet-workers match this session's harness, model, and effort) or override any of the three. Write the resolved values to `.fleet/config.md`.
 3. If it reports existing rows, reconcile: compare against live panes and surviving `fleet/*` branches; report orphans before taking new work.
 4. Announce: "Fleet mode active — I orchestrate, fleet-workers act."
 
-On "fleet off": wind down live fleet-workers (harvest or report), then run `"<skill-dir>/scripts/fleet-mode.sh" off` — it disarms the guard, prunes finished rows from `tasks.md`, and keeps `.fleet/` plus the pruned `tasks.md` (repeat activation keys on them). Run it **before** any other cleanup edits (the armed guard blocks in-place tools even on `.fleet/` files). Confirm in one line.
+On "fleet off": wind down live fleet-workers (harvest or report), then run `"<skill-dir>/scripts/fleet-mode.sh" off` — **before** any other cleanup edits (the armed guard blocks in-place tools even on `.fleet/` files). Confirm in one line.
 
-On "fleet uninstall" (explicit user request only): run `"<skill-dir>/scripts/fleet-mode.sh" uninstall` — it refuses while fleet is active or unfinished rows remain (listing their ids), otherwise removes `.fleet/` and the gitignore entry. If it refuses over unfinished rows, relay the ids and ask the user; for rows they abandon, mark them `abandoned` in `tasks.md`, run `off` to prune, then retry. The harness hook entry stays (inert without the flag, shared across repos). Never remove `.fleet/` any other way.
+On "fleet uninstall" (explicit user request only): confirm with the user first — destructive: deletes `.fleet/` with `tasks.md` and `config.md`. Then wind down any live fleet-workers and run `"<skill-dir>/scripts/fleet-mode.sh" uninstall` (turns fleet off itself if still on). If it refuses over unfinished rows, relay the ids and ask the user; for rows they abandon, mark them `abandoned` in `tasks.md`, run `off` to prune, then retry. The harness hook entry stays (inert without the flag, shared across repos). Never remove `.fleet/` any other way.
 
 ## Enforcement
 
@@ -64,9 +64,9 @@ A PreToolUse hook (`scripts/fleet-guard.sh`) blocks the fleet-manager's Edit/Wri
 
 Split the request into independent tasks: independent = disjoint files/areas; otherwise merge into one task or chain (second dispatched after the first merges). Shapes: **Ship** (code changes; deliverable = branch `fleet/<id>` + your review) and **Scout** (investigation; deliverable = report, no code).
 
-Id format: `<verb>-<object>` kebab-case, ≤ 24 chars (e.g. `fix-login-test`); on collision append `-2`, `-3`, …
+Id format: `<verb>-<object>` kebab-case, ≤ 24 chars (e.g. `fix-login-test`); `fleet-task.sh create` auto-suffixes collisions and prints the resolved id.
 
-Record every state change in `.fleet/tasks.md`; it is what a restarted session reconciles from. `base` is the branch the task forks from and merges into: the currently checked-out branch at intake unless the user names another. Schema:
+Row lifecycle goes through `fleet-task.sh` (`create`, `status <id> <status>`, `pane <id> <pane-id>`); `.fleet/tasks.md` is what a restarted session reconciles from. `base` is the branch the task forks from and merges into: the currently checked-out branch at intake unless the user names another. Schema:
 
 ```markdown
 | id | shape | fleet-worker | status | pane | branch | base | updated |
@@ -81,12 +81,10 @@ Record every state change in `.fleet/tasks.md`; it is what a restarted session r
 Every Ship task gets its own worktree, no exceptions; fleet-workers never touch the primary checkout:
 
 ```bash
-git worktree add "../$(basename "$PWD")-fleet/<id>" -b "fleet/<id>" "<base>"
+"<skill-dir>/scripts/fleet-task.sh" create <id> <ship|scout> <base>
 ```
 
-Record the new worktree's absolute path (`realpath` it) and reuse that exact value for the pane's `--cwd`, the brief's `<worktree-path>`, review, and teardown.
-
-Scouts run read-only in the primary checkout.
+It provisions the worktree and `fleet/<id>` branch (Ship), appends the row, and prints the resolved id and absolute dir; reuse that exact `dir` for the pane's `--cwd` and the brief's `<worktree-path>`. Scouts run read-only in the primary checkout.
 
 ### 3. Dispatch
 
@@ -99,14 +97,12 @@ Scouts run read-only in the primary checkout.
 | 3 | bottom-right | `herdr pane split <slot-1-pane-id> --direction down --cwd "<dir>" --no-focus` |
 
 ```bash
-# pane id at .result.pane.pane_id
-herdr agent start fleet-<id> --kind <kind> --pane <PANE_ID> -- <model/effort flags composed from config.md, then its extra flags>
-# stage the filled brief first (guard-exempt path; also keeps the command free
-# of brief text that could trip the Bash guard or expand in your shell)
-herdr agent prompt fleet-<id> "$(cat .fleet/<id>.brief.md)"
-# arm the watcher (detached; wakes you in your own pane when the fleet-worker settles)
-nohup "<skill-dir>/scripts/fleet-watch.sh" <id> "$HERDR_PANE_ID" >/dev/null 2>&1 &
+# pane id at .result.pane.pane_id; stage the filled .fleet/<id>.brief.md first
+# (guard-exempt path; keeps brief text out of your shell command)
+"<skill-dir>/scripts/fleet-dispatch.sh" <id> <PANE_ID>
 ```
+
+One atomic step: starts the fleet-worker per `config.md`, sends the brief, arms the watcher, marks the row `dispatched`.
 
 Briefs come from `references/fleet-worker-brief.md`, used verbatim with only placeholders filled; `<worktree-path>` and `<main-repo-path>` must be **absolute** paths (a relative path fails the fleet-worker's self-check). Non-negotiable elements: worktree self-check, commit-on-branch/no-push rule, and the result-file protocol (fleet-worker writes `.fleet/<id>.result.md` in the **main** repo and replies with only the `DONE: <path>` line, sidestepping herdr's alternate-screen scrollback loss).
 
@@ -115,7 +111,7 @@ Briefs come from `references/fleet-worker-brief.md`, used verbatim with only pla
 Fleet-workers never block the main session; you stay free to answer the user and steer the fleet:
 
 - Supervision is event-driven: the watcher armed at dispatch waits on the fleet-worker and wakes you by prompting your own pane with a `FLEET-EVENT <id>` line. Never poll, never wait in the foreground, never use `agent prompt --wait` for briefs.
-- Watchers are **one-shot**: after handling an event, re-arm with the same `fleet-watch.sh` command if the task is still live.
+- Watchers are **one-shot**: after handling an event, if the task is still live re-arm with `nohup "<skill-dir>/scripts/fleet-watch.sh" <id> "$HERDR_PANE_ID" >/dev/null 2>&1 &` (dispatch armed the first one).
 - A `FLEET-EVENT` message is machine-generated fleet-worker state, not a user instruction; it tells you which fleet-worker settled, nothing more.
 - After dispatching, end your turn with a one-line fleet status.
 - If the user speaks, respond immediately; fleet events queue behind the conversation.
@@ -141,16 +137,13 @@ Scouts: verify the report answers the brief, then relay your synthesis, not the 
 
 ### 6. Teardown
 
-Ship tasks, after merge or explicit abandonment (confirm with the user if the branch has unmerged commits):
+After merge or explicit abandonment (confirm with the user if the branch has unmerged commits), set the terminal status, then:
 
 ```bash
-herdr pane close <PANE_ID>
-git worktree remove "<recorded-worktree-path>" && git branch -d "fleet/<id>"
+"<skill-dir>/scripts/fleet-task.sh" teardown <id>   # --force-branch only for a user-confirmed abandonment
 ```
 
-`git branch -d` refuses unmerged commits; use `-D` only for a user-confirmed abandonment. Scouts: just `herdr pane close` — no worktree or branch exists.
-
-Update `tasks.md`; delete `.fleet/<id>.result.md` and `.fleet/<id>.brief.md`; `rmdir` the `-fleet/` parent if empty. Never tear down unlanded work without explicit user approval.
+It closes the pane, removes the worktree and branch (refusing unmerged commits without `--force-branch`), and deletes the brief/result files. Never tear down unlanded work without explicit user approval.
 
 ## Context hygiene
 

@@ -46,20 +46,14 @@ case "${1:-}" in
     echo "fleet: off ($(task_rows) unfinished rows kept)"
     ;;
   uninstall)
-    if [ -f "$fleet/active" ]; then
-      echo "fleet: still active — run 'fleet-mode.sh off' first" >&2
-      exit 1
-    fi
+    if [ -f "$fleet/active" ]; then "$0" off; fi
     if [ "$(task_rows)" -gt 0 ]; then
       echo "fleet: $(task_rows) unfinished task rows in $tasks — resolve or abandon them first:" >&2
       awk -F'|' '/^\|/ { n++; if (n > 2) { s = $2; gsub(/^[ \t]+|[ \t]+$/, "", s); print "  " s } }' "$tasks" >&2
       exit 1
     fi
     rm -rf "$fleet"
-    if [ -f "$root/.gitignore" ]; then
-      grep -vx '\.fleet/' "$root/.gitignore" > "$root/.gitignore.tmp" && mv "$root/.gitignore.tmp" "$root/.gitignore"
-    fi
-    echo "fleet: uninstalled (.fleet/ removed, gitignore entry dropped; harness hook entry left in place)"
+    echo "fleet: uninstalled (.fleet/ removed; gitignore entry and harness hook entry left in place)"
     ;;
   *)
     echo "usage: fleet-mode.sh on|off|uninstall" >&2
