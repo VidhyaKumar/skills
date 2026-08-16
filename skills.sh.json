@@ -16,6 +16,11 @@
 			"title": "Implementation",
 			"description": "Skills for how to structure and write the change itself.",
 			"skills": ["happy-path-first"]
+		},
+		{
+			"title": "Orchestration",
+			"description": "Skills for delegating work to supervised worker agents.",
+			"skills": ["fleet"]
 		}
 	]
 }

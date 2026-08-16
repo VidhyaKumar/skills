@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# PreToolUse guard for fleet mode. Inert unless <repo-root>/.fleet/active exists.
+# Blocks the main agent's file mutations so task work goes to fleet workers.
+# Bash blocking is heuristic: it catches common write patterns, not all of them.
+set -euo pipefail
+
+input="$(cat)"
+command -v jq >/dev/null 2>&1 || exit 0
+
+cwd="$(jq -r '.cwd // empty' <<<"$input")"
+[ -n "$cwd" ] || exit 0
+root="$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null)" || root="$cwd"
+[ -f "$root/.fleet/active" ] || exit 0
+
+tool="$(jq -r '.tool_name // empty' <<<"$input")"
+
+deny() {
+  echo "fleet mode active: $1 Dispatch a fleet worker instead. Only the user can deactivate (by saying 'fleet off')." >&2
+  exit 2
+}
+
+case "$tool" in
+  Edit|Write|NotebookEdit)
+    file_path="$(jq -r '.tool_input.file_path // .tool_input.notebook_path // empty' <<<"$input")"
+    case "$file_path" in
+      .fleet/*|*/.fleet/*) exit 0 ;;
+      *) deny "direct file edits are blocked ($tool on ${file_path:-unknown})." ;;
+    esac
+    ;;
+  Bash)
+    cmd="$(jq -r '.tool_input.command // empty' <<<"$input")"
+    # In-place editors and tee are always writes.
+    if grep -qE '(^|[;&|[:space:]])(sed[[:space:]]+-[a-zA-Z]*i|perl[[:space:]]+-[a-zA-Z]*i|tee[[:space:]])' <<<"$cmd"; then
+      deny "mutating shell command blocked (in-place edit/tee)."
+    fi
+    # Redirection into files, unless the target is .fleet/, /tmp, or /dev/null.
+    if grep -qE '>>?[[:space:]]*[^&|[:space:]]' <<<"$cmd" \
+      && ! grep -qE '>>?[[:space:]]*("?[^[:space:]"]*\.fleet/|/tmp/|/dev/null)' <<<"$cmd"; then
+      deny "shell redirection into a file blocked."
+    fi
+    exit 0
+    ;;
+  *) exit 0 ;;
+esac
