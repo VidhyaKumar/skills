@@ -47,8 +47,14 @@ case "${1:-}" in
     id="${2:?id}"; shape="${3:?shape (ship|scout)}"; base="${4:?base branch}"
     kind="$(sed -n 's/^kind:[ 	]*//p' "$fleet/config.md" 2>/dev/null | head -1)"
     [ -n "$kind" ] || die "no kind in $fleet/config.md — write the fleet-worker config first"
+    # The id becomes herdr agent/tab name fw-<id>: herdr caps names at 32
+    # chars ([a-z][a-z0-9_-]{0,31}), so ids are [a-z0-9_-] and <= 29 chars.
+    # LC_ALL=C: bare a-z ranges are collation-dependent and can admit uppercase
+    printf %s "$id" | LC_ALL=C grep -qE '^[a-z0-9_-]+$' \
+      || die "invalid id '$id': lowercase letters, digits, '-' or '_' only"
     want="$id"; n=2
     while have_id "$id"; do id="$want-$n"; n=$((n+1)); done
+    [ "${#id}" -le 29 ] || die "id '$id' too long: fw-$id exceeds herdr's 32-char agent-name limit (ids max 29 chars)"
     case "$shape" in
       ship)
         dir="$(wt_parent)/$id"

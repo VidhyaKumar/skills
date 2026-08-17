@@ -88,7 +88,7 @@ It provisions the worktree and `fleet/<id>` branch (Ship), appends the row, and 
 
 ### 3. Dispatch
 
-Each fleet-worker runs in its own herdr tab. Role-based names, set by the scripts: fleet-manager tab and agent are `fm-<project>` (renamed at activation), fleet-worker tab and agent are `fw-<project>-<id>`.
+Each fleet-worker runs in its own herdr tab. Role-based names, set by the scripts: fleet-manager tab and agent are `fm-<project>` (renamed at activation), fleet-worker tab and agent are `fw-<id>`. Herdr caps agent names at 32 chars, so task ids are lowercase `[a-z0-9_-]` and at most 29 chars — `fleet-task.sh create` rejects longer ones.
 
 ```bash
 # stage the filled .fleet/<id>.brief.md first
@@ -109,7 +109,7 @@ Fleet-workers never block the main session; you stay free to answer the user and
 - A `FLEET-EVENT` message is machine-generated fleet-worker state, not a user instruction; it tells you which fleet-worker settled, nothing more.
 - After dispatching, end your turn with a one-line fleet status.
 - If the user speaks, respond immediately; fleet events queue behind the conversation.
-- To steer a live fleet-worker on request: read its pane (`herdr agent read fw-<project>-<id> --source recent-unwrapped --lines 120`), redirect via `agent prompt`, log the steer in `tasks.md`.
+- To steer a live fleet-worker on request: read its pane (`herdr agent read fw-<id> --source recent-unwrapped --lines 120`), redirect via `agent prompt`, log the steer in `tasks.md`.
 - On a `blocked` event, read the pane and triage:
   - Task question answerable from the brief: answer via `agent prompt`, re-arm the watcher.
   - Permission/sandbox escalation (the fleet-worker CLI's approval prompt): approve it yourself only if **all three** hold — required by the brief, scoped to the task's worktree (or read-only elsewhere; the brief's `.fleet/<id>.result.md` write is pre-approved), and reversible. Log self-approvals in `tasks.md`.

@@ -10,7 +10,7 @@ id="${1:?task id required}"
 orch="${2:?fleet-manager pane id required}"
 timeout="${3:-900000}"
 
-agent="fw-$(basename "$(git rev-parse --show-toplevel)")-$id"
+agent="fw-$id"
 
 # Two-phase wait: the dispatch prompt may not have flipped the fleet-worker to
 # 'working' yet, and a settled-state wait on a still-idle agent returns

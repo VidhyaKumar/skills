@@ -26,7 +26,7 @@ case "${1:-}" in
     fi
     touch "$fleet/active"
     # role-based names: fleet-manager tab/agent = fm-<project> (fleet-workers
-    # get fw-<project>-<id> at dispatch)
+    # get fw-<id> at dispatch)
     if [ -n "${HERDR_PANE_ID:-}" ]; then
       tab="$(herdr pane list 2>/dev/null | jq -r --arg p "$HERDR_PANE_ID" \
         '.result.panes[] | select(.pane_id==$p) | .tab_id' 2>/dev/null)" || tab=""

@@ -36,7 +36,7 @@ case "$kind" in
           set -- ;;
 esac
 
-name="fw-$(basename "$root")-$id"
+name="fw-$id"
 dir="$(sh "$sdir/fleet-task.sh" dir "$id")"
 created="$(herdr tab create --cwd "$dir" --label "$name" --no-focus)"
 tab="$(printf %s "$created" | jq -r '.result.tab.tab_id // empty')"

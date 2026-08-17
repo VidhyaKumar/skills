@@ -1,6 +1,6 @@
 # Fleet-worker brief template
 
-Fill every `<placeholder>`; `<worktree-path>` and `<main-repo-path>` must be absolute paths. Write the filled brief to `.fleet/<id>.brief.md`; `fleet-dispatch.sh <id>` sends it. Feedback rounds go direct: `herdr agent prompt fw-<project>-<id> "..."`.
+Fill every `<placeholder>`; `<worktree-path>` and `<main-repo-path>` must be absolute paths. Write the filled brief to `.fleet/<id>.brief.md`; `fleet-dispatch.sh <id>` sends it. Feedback rounds go direct: `herdr agent prompt fw-<id> "..."`.
 
 ## Ship task
 
