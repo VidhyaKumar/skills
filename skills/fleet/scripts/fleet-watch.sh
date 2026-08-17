@@ -27,4 +27,16 @@ if command -v jq >/dev/null 2>&1; then
 fi
 [ -n "$status" ] || status="gone-or-unreadable"
 
-herdr agent prompt "$orch" "FLEET-EVENT $id: fleet-worker status '$status' (wait exit $code). Handle per Supervise: check the result file, triage blocked, or re-arm the watcher." >/dev/null 2>&1
+msg="FLEET-EVENT $id: fleet-worker status '$status' (wait exit $code). Handle per Supervise: check the result file, triage blocked, or re-arm the watcher."
+tries=0
+max=3
+last=""
+while [ "$tries" -lt "$max" ]; do
+  tries=$((tries + 1))
+  if last="$(herdr agent prompt "$orch" "$msg" 2>&1)"; then
+    exit 0
+  fi
+  [ "$tries" -lt "$max" ] && sleep 1
+done
+echo "fleet-watch: failed to deliver manager event for $id after $max attempts: ${last:-herdr agent prompt failed}" >&2
+exit 1

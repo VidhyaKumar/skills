@@ -30,8 +30,8 @@ case "$kind" in
           set -- -m "$model" -c "model_reasoning_effort=$effort" ;;
   grok)   [ -n "$model" ] && [ -n "$effort" ] || die "grok needs model and effort in config.md"
           set -- -m "$model" --reasoning-effort "$effort" ;;
-  claude) [ -n "$model" ] || die "claude needs model in config.md"
-          set -- --model "$model" ;;
+  claude) [ -n "$model" ] && [ -n "$effort" ] || die "claude needs model and effort in config.md"
+          set -- --model "$model" --effort "$effort" ;;
   *)      [ -n "$model" ] && die "unknown kind '$kind': put its model/effort flags in 'flags:' instead of 'model:'"
           set -- ;;
 esac

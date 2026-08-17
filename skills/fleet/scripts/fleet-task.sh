@@ -12,9 +12,26 @@ set -eu
 root="$(git rev-parse --show-toplevel)"
 fleet="$root/.fleet"
 tasks="$fleet/tasks.md"
+# OS lock: lockf (macOS) or flock (Linux), 30s timeout. Same path as fleet-mode.sh.
+# File contents are not ownership — OS lock state is authoritative.
+# Mutating commands re-exec once under FLEET_TASKS_LOCKED.
+tasks_lock="$fleet/tasks.lock"
 
 now() { date -u +%Y-%m-%dT%H:%MZ; }
 die() { echo "fleet-task: $1" >&2; exit 1; }
+
+with_tasks_lock() {
+  if [ -n "${FLEET_TASKS_LOCKED:-}" ]; then
+    return 0
+  fi
+  if command -v lockf >/dev/null 2>&1; then
+    FLEET_TASKS_LOCKED=1 exec lockf -k -t 30 "$tasks_lock" "$0" "$@"
+  elif command -v flock >/dev/null 2>&1; then
+    FLEET_TASKS_LOCKED=1 exec flock -w 30 "$tasks_lock" "$0" "$@"
+  else
+    die "neither lockf nor flock is available; cannot lock $tasks"
+  fi
+}
 
 # worktrees live outside every repo: ~/.fleet-worktrees/<project>-<hash>/<id>
 # (hash disambiguates same-named projects at different paths; name deliberately
@@ -52,6 +69,7 @@ case "${1:-}" in
     # LC_ALL=C: bare a-z ranges are collation-dependent and can admit uppercase
     printf %s "$id" | LC_ALL=C grep -qE '^[a-z0-9_-]+$' \
       || die "invalid id '$id': lowercase letters, digits, '-' or '_' only"
+    with_tasks_lock "$@"
     want="$id"; n=2
     while have_id "$id"; do id="$want-$n"; n=$((n+1)); done
     [ "${#id}" -le 29 ] || die "id '$id' too long: fw-$id exceeds herdr's 32-char agent-name limit (ids max 29 chars)"
@@ -77,12 +95,14 @@ case "${1:-}" in
       queued|dispatched|working|blocked|review|feedback|awaiting-approval|merged|abandoned|done) ;;
       *) die "unknown status '$st'" ;;
     esac
+    with_tasks_lock "$@"
     have_id "$id" || die "no row for '$id'"
     update_col "$id" 5 "$st"
     echo "fleet-task: $id -> $st"
     ;;
   tab)
     id="${2:?id}"; t="${3:?tab id}"
+    with_tasks_lock "$@"
     have_id "$id" || die "no row for '$id'"
     update_col "$id" 6 "$t"
     echo "fleet-task: $id tab $t"
@@ -109,7 +129,13 @@ case "${1:-}" in
     if [ "$shape" = "ship" ]; then
       parent="$(wt_parent)"
       dir="$parent/$id"
-      if [ -d "$dir" ]; then git -C "$root" worktree remove "$dir"; fi
+      if [ -d "$dir" ]; then
+        if [ "$force" = "--force-branch" ]; then
+          git -C "$root" worktree remove --force "$dir"
+        else
+          git -C "$root" worktree remove "$dir"
+        fi
+      fi
       if [ "$force" = "--force-branch" ]; then
         git -C "$root" branch -D "fleet/$id"
       else

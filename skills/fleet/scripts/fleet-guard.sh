@@ -41,13 +41,30 @@ case "$tool" in
         *) deny "direct file edits are blocked ($tool on $file_path)." ;;
       esac
     else
-      # Patch-body payloads (codex apply_patch) carry no path field; allow
-      # only if the body references .fleet/ at all. Heuristic, fail-open.
-      raw="$(jq -r '(.tool_input // .toolInput // {}) | tostring' <<<"$input")"
-      case "$raw" in
-        *.fleet/*) exit 0 ;;
-        *) deny "direct file edits are blocked ($tool)." ;;
-      esac
+      # Pathless apply_patch: parse every *** Add/Update/Delete File: path
+      # and every Codex *** Move to: destination. Allow only when at least
+      # one path exists and every path is under .fleet/. Fail closed if no
+      # paths can be established.
+      patch="$(jq -r '
+        (.tool_input // .toolInput // {})
+        | if type == "string" then .
+          else (.input // .patch // .diff // empty)
+          end
+      ' <<<"$input")"
+      paths="$(printf '%s\n' "$patch" | sed -nE 's/^[*][*][*] (Add File|Update File|Delete File|Move to):[[:space:]]+//p')"
+      found=0
+      while IFS= read -r p; do
+        p="${p%"${p##*[![:space:]]}"}"
+        [ -n "$p" ] || continue
+        found=1
+        case "$p" in
+          *..*) deny "direct file edits are blocked ($tool on $p)." ;;
+          .fleet/*|*/.fleet/*) ;;
+          *) deny "direct file edits are blocked ($tool on $p)." ;;
+        esac
+      done < <(printf '%s\n' "$paths")
+      [ "$found" -eq 1 ] || deny "direct file edits are blocked ($tool)."
+      exit 0
     fi
     ;;
   Bash|run_terminal_command)

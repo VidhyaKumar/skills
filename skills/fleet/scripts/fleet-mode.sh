@@ -7,6 +7,24 @@ set -eu
 root="$(git rev-parse --show-toplevel)"
 fleet="$root/.fleet"
 tasks="$fleet/tasks.md"
+# OS lock: lockf (macOS) or flock (Linux), 30s timeout. Same path as fleet-task.sh.
+# File contents are not ownership — OS lock state is authoritative.
+# Mutating commands re-exec once under FLEET_TASKS_LOCKED.
+tasks_lock="$fleet/tasks.lock"
+
+with_tasks_lock() {
+  if [ -n "${FLEET_TASKS_LOCKED:-}" ]; then
+    return 0
+  fi
+  if command -v lockf >/dev/null 2>&1; then
+    FLEET_TASKS_LOCKED=1 exec lockf -k -t 30 "$tasks_lock" "$0" "$@"
+  elif command -v flock >/dev/null 2>&1; then
+    FLEET_TASKS_LOCKED=1 exec flock -w 30 "$tasks_lock" "$0" "$@"
+  else
+    echo "fleet: neither lockf nor flock is available; cannot lock $tasks" >&2
+    exit 1
+  fi
+}
 
 task_rows() {
   [ -f "$tasks" ] || { echo 0; return; }
@@ -18,6 +36,11 @@ case "${1:-}" in
     # The guard and watcher both parse JSON with jq; without it enforcement
     # would silently vanish, so refuse to arm at all.
     command -v jq >/dev/null 2>&1 || { echo "fleet: jq is required (guard/watcher depend on it) — install jq first" >&2; exit 1; }
+    # Parallel-safe task state is required once fleet is on.
+    if ! command -v lockf >/dev/null 2>&1 && ! command -v flock >/dev/null 2>&1; then
+      echo "fleet: neither lockf nor flock is available; parallel-safe task state requires one of them" >&2
+      exit 1
+    fi
     # gitignore before arming: once .fleet/active exists the guard blocks this edit
     grep -qx '\.fleet/' "$root/.gitignore" 2>/dev/null || printf '\n.fleet/\n' >> "$root/.gitignore"
     mkdir -p "$fleet"
@@ -43,6 +66,7 @@ case "${1:-}" in
   off)
     rm -f "$fleet/active"
     if [ -f "$tasks" ]; then
+      with_tasks_lock "$@"
       awk -F'|' '
         !/^\|/ { print; next }
         { n++ }
