@@ -5,9 +5,10 @@ description: >
   invariants, and evidence-driven complexity. Use when implementing a feature,
   writing new code, refactoring toward use-case orchestration, or when the user
   runs /happy-path-first or says "happy path first".
+metadata:
+  author: Hona
+  source: https://gist.github.com/Hona/53142c07c9decb735392f132ace34003
 ---
-
-<!-- from https://gist.github.com/Hona/53142c07c9decb735392f132ace34003 -->
 
 Implement the requested change, but optimize the design for the normal user flow. If the happy path is 95% of runtime behavior, it should be approximately 95% of the code readers see.
 
@@ -387,3 +388,5 @@ When deeper design work is required, prefer this order:
 Finish the complete change, run focused verification, delete temporary artifacts, and do one final simplification pass. The result should feel boring, obvious, typed, cohesive, and native to the codebase.
 
 The combined style is: **happy-path-first, use-case-oriented design with deep modules, type-driven invariants, boundary isolation, and evidence-driven complexity.**
+
+Adapted from [code-like-luke](https://gist.github.com/Hona/53142c07c9decb735392f132ace34003) by [Hona](https://github.com/Hona).

@@ -38,3 +38,9 @@ Target a specific agent:
 ```bash
 bunx skills add VidhyaKumar/skills --skill '*' -a claude-code
 ```
+
+## Credits
+
+`attention-kind` is adapted from [attention-span](https://github.com/alexgreensh/attention-span) by [alexgreensh](https://github.com/alexgreensh).
+
+`happy-path-first` is adapted from [code-like-luke](https://gist.github.com/Hona/53142c07c9decb735392f132ace34003) by [Hona](https://github.com/Hona).
