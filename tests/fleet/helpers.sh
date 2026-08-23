@@ -116,3 +116,28 @@ esac
 EOF
   chmod +x "$bin/herdr"
 }
+
+# guard_bash <repo> <command> -> sets GUARD_RC to the guard's exit status.
+# Set via a variable, not stdout, so callers stay out of a subshell.
+guard_bash() {
+  payload="$tmp_root/guard-bash.json"
+  jq -n --arg cwd "$1" --arg cmd "$2" \
+    '{tool_name:"Bash", cwd:$cwd, tool_input:{command:$cmd}}' > "$payload"
+  if bash "$guard_sh" < "$payload" >/dev/null 2>"$tmp_root/guard-bash.err"; then
+    GUARD_RC=0
+  else
+    GUARD_RC=$?
+  fi
+}
+
+# guard_write <repo> <file_path> -> sets GUARD_RC.
+guard_write() {
+  payload="$tmp_root/guard-write.json"
+  jq -n --arg cwd "$1" --arg fp "$2" \
+    '{tool_name:"Write", cwd:$cwd, tool_input:{file_path:$fp, content:"x"}}' > "$payload"
+  if bash "$guard_sh" < "$payload" >/dev/null 2>"$tmp_root/guard-write.err"; then
+    GUARD_RC=0
+  else
+    GUARD_RC=$?
+  fi
+}
