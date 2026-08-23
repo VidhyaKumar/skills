@@ -57,8 +57,16 @@ until out="$(herdr agent start "$name" --kind "$kind" --pane "$pane" -- "$@" $ex
   sleep 1
 done
 printf '%s\n' "$out"
-herdr agent prompt "$name" "$(cat "$brief")"
+# A failed prompt leaves a started agent with no brief; close the tab we opened
+# rather than stranding it (set -e would otherwise abort with the tab live).
+herdr agent prompt "$name" "$(cat "$brief")" || {
+  herdr tab close "$tab" >/dev/null 2>&1 || true
+  die "agent prompt failed — tab $tab closed, row left queued"
+}
+# pid recorded so teardown / 'fleet off' can stop the watcher before its agent
+# disappears (a watcher outliving its agent fires a phantom FLEET-EVENT)
 nohup bash "$sdir/fleet-watch.sh" "$id" "$HERDR_PANE_ID" >/dev/null 2>&1 &
+echo $! > "$fleet/$id.watch.pid"
 sh "$sdir/fleet-task.sh" tab "$id" "$tab" >/dev/null
 sh "$sdir/fleet-task.sh" status "$id" dispatched >/dev/null
 echo "fleet-dispatch: $id -> $kind in tab $tab (brief sent, watcher armed)"

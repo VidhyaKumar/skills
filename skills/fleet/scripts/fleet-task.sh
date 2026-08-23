@@ -41,6 +41,23 @@ wt_parent() {
   echo "$HOME/.fleet-worktrees/$(basename "$root")-$hash"
 }
 
+# Watchers are detached background processes; kill one before its task's agent
+# disappears, or it fires a phantom FLEET-EVENT at the fleet-manager.
+# A pidfile outlives the watcher that exits on its own, so the pid may have
+# been recycled by then — confirm it is still a fleet-watch before killing.
+stop_watcher() {
+  pidfile="$fleet/$1.watch.pid"
+  [ -f "$pidfile" ] || return 0
+  pid="$(cat "$pidfile")"
+  case "$pid" in
+    ''|*[!0-9]*) ;;
+    *) if ps -p "$pid" -o command= 2>/dev/null | grep -q fleet-watch; then
+         kill "$pid" 2>/dev/null || true
+       fi ;;
+  esac
+  rm -f "$pidfile"
+}
+
 have_id() {
   awk -F'|' -v id="$1" '/^\|/ { s=$2; gsub(/^[ \t]+|[ \t]+$/,"",s); if (s==id) found=1 } END { exit !found }' "$tasks"
 }
@@ -102,6 +119,9 @@ case "${1:-}" in
     ;;
   tab)
     id="${2:?id}"; t="${3:?tab id}"
+    # the row is a '|'-delimited table: a '|' in the value would corrupt it
+    printf %s "$t" | LC_ALL=C grep -qE '^[A-Za-z0-9_:.-]+$' \
+      || die "invalid tab id '$t'"
     with_tasks_lock "$@"
     have_id "$id" || die "no row for '$id'"
     update_col "$id" 6 "$t"
@@ -120,8 +140,31 @@ case "${1:-}" in
     ;;
   teardown)
     id="${2:?id}"; force="${3:-}"
+    case "$force" in ""|--force-branch) ;; *) die "unknown option '$force'" ;; esac
+    # Read the row under the lock: a concurrent 'fleet off' rewrites tasks.md.
+    with_tasks_lock "$@"
     have_id "$id" || die "no row for '$id'"
     shape="$(field "$id" 3)"; tab="$(field "$id" 6)"
+    # Refuse BEFORE destroying anything: `git branch -d` refuses unmerged
+    # commits too late (the worktree is already gone), leaving a half-torn
+    # state no rerun can finish. Skipped when the branch is already gone so
+    # a partial teardown stays resumable.
+    if [ "$shape" = "ship" ] && [ "$force" != "--force-branch" ] \
+      && git -C "$root" rev-parse --verify -q "refs/heads/fleet/$id" >/dev/null; then
+      base="$(field "$id" 8)"
+      git -C "$root" merge-base --is-ancestor "fleet/$id" "$base" 2>/dev/null \
+        || die "fleet/$id has unmerged commits on $base — rerun with --force-branch after the user confirms"
+    fi
+    # Same reason: `git worktree remove` refuses a worktree holding modified or
+    # untracked files (gitignored build output is fine), and refusing there
+    # would land after the watcher and tab are already gone.
+    if [ "$shape" = "ship" ] && [ "$force" != "--force-branch" ] && [ -d "$(wt_parent)/$id" ]; then
+      dirty="$(git -C "$(wt_parent)/$id" status --porcelain 2>/dev/null)"
+      [ -z "$dirty" ] \
+        || die "worktree for $id has uncommitted or untracked files — commit, remove, or rerun with --force-branch:
+$dirty"
+    fi
+    stop_watcher "$id"
     if [ "$tab" != "-" ] && [ -n "$tab" ]; then
       herdr tab close "$tab" >/dev/null 2>&1 \
         || echo "fleet-task: warn — tab $tab not closed (already gone?)" >&2
@@ -136,11 +179,12 @@ case "${1:-}" in
           git -C "$root" worktree remove "$dir"
         fi
       fi
-      if [ "$force" = "--force-branch" ]; then
-        git -C "$root" branch -D "fleet/$id"
-      else
-        # refuses unmerged commits; rerun with --force-branch after user confirms
-        git -C "$root" branch -d "fleet/$id"
+      if git -C "$root" rev-parse --verify -q "refs/heads/fleet/$id" >/dev/null; then
+        if [ "$force" = "--force-branch" ]; then
+          git -C "$root" branch -D "fleet/$id"
+        else
+          git -C "$root" branch -d "fleet/$id"
+        fi
       fi
       rmdir "$parent" 2>/dev/null || true
     fi

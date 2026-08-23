@@ -65,6 +65,20 @@ case "${1:-}" in
     ;;
   off)
     rm -f "$fleet/active"
+    # Stop detached watchers: one that outlives fleet mode fires a phantom
+    # FLEET-EVENT at a pane that is no longer orchestrating. A pidfile can
+    # outlive its watcher, so confirm the pid is still one before killing.
+    for pidfile in "$fleet"/*.watch.pid; do
+      [ -f "$pidfile" ] || continue
+      pid="$(cat "$pidfile")"
+      case "$pid" in
+        ''|*[!0-9]*) ;;
+        *) if ps -p "$pid" -o command= 2>/dev/null | grep -q fleet-watch; then
+             kill "$pid" 2>/dev/null || true
+           fi ;;
+      esac
+      rm -f "$pidfile"
+    done
     if [ -f "$tasks" ]; then
       with_tasks_lock "$@"
       awk -F'|' '
