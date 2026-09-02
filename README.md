@@ -17,7 +17,7 @@ Agent skills for git workflows and code cleanup. Compatible with Claude Code, Cu
 | `bro` | Restate the last message simply and without jargon. |
 | `attention-kind` | ADHD-friendly replies: plain English, front-loaded answers, short by default. |
 | `happy-path-first` | Implement with happy-path-first orchestration, deep modules, and type-driven invariants. |
-| `fleet` | Orchestration mode: main agent plans and reviews; task-matched worker models in herdr panes do all code changes. |
+| `fleet` | Orchestration mode: main agent plans and reviews; workers in herdr tabs, each in its own git worktree, do all code changes. |
 
 ## Install
 
