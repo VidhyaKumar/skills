@@ -8,6 +8,7 @@
 set -euo pipefail
 
 input="$(cat)"
+sdir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 
 if command -v jq >/dev/null 2>&1; then
   cwd="$(jq -r '.cwd // empty' <<<"$input")"
@@ -43,6 +44,13 @@ exempt() {
     .fleet/*|*/.fleet/*) return 0 ;;
     *) return 1 ;;
   esac
+}
+
+# Only the skill's own fleet-*.sh scripts may run: an allowed redirect can
+# write a script into /tmp or .fleet/, so "any named script" is a write path.
+fleet_script() {
+  case "${1##*/}" in fleet-*.sh) ;; *) return 1 ;; esac
+  [ "$(cd "$cwd" 2>/dev/null && cd "$(dirname "$1")" 2>/dev/null && pwd -P)" = "$sdir" ]
 }
 
 case "$tool" in
@@ -140,7 +148,7 @@ echo printf pwd date test true false which type herdr git sleep"
       [ "$#" -gt 0 ] || continue
       base="${1##*/}"
       case "$base" in
-        fleet-*.sh) continue ;;
+        fleet-*.sh) fleet_script "$1" || deny "only the fleet scripts in $sdir may be run ($1)."; continue ;;
         bash|sh|zsh|dash|ksh)
           # Running a named script is fine. -c smuggles a command inline, and
           # a shell with no script argument reads one from stdin, which is how
@@ -156,6 +164,7 @@ echo printf pwd date test true false which type herdr git sleep"
             shift
           done
           [ -n "$script" ] || deny "$shellname with no script argument reads from stdin; blocked."
+          fleet_script "$script" || deny "$shellname may only run the fleet scripts in $sdir ($script)."
           continue ;;
         git)
           # git is dual-use: allow only the read-only side, plus the merge the
@@ -164,14 +173,23 @@ echo printf pwd date test true false which type herdr git sleep"
           if ! grep -qE "(^|[[:space:]])git[[:space:]]+(--no-pager[[:space:]]+|-C[[:space:]]+[^[:space:]-][^[:space:]]*[[:space:]]+)*(diff|log|status|show|rev-parse|rev-list|merge-base|ls-files|ls-tree|cat-file|blame|describe|shortlog|symbolic-ref|for-each-ref|branch|worktree|merge)([[:space:]]|\$)" <<<"$seg"; then
             deny "git subcommand not on the fleet allowlist ($seg)."
           fi
-          case "$seg" in
-            *" branch "*-[dDmM]*|*" branch "*--delete*|*" branch "*--move*|*" branch "*--force*)
-              deny "mutating git branch blocked." ;;
-          esac
-          case "$seg" in
-            *" worktree "*add*|*" worktree "*remove*|*" worktree "*prune*|*" worktree "*move*|*" worktree "*repair*)
-              deny "mutating git worktree blocked (use fleet-task.sh)." ;;
-          esac
+          # Options are checked per token after the subcommand, so `--merged`
+          # (which contains "-m") and paths containing "add" are not mistaken
+          # for mutations.
+          shift
+          while [ "$#" -gt 0 ]; do
+            case "$1" in --no-pager) shift ;; -C) shift 2 ;; *) break ;; esac
+          done
+          sub="${1:-}"
+          [ "$#" -gt 0 ] && shift
+          for a in "$@"; do
+            case "$sub:$a" in
+              branch:-[cCdDfmMu]*|branch:--copy|branch:--delete|branch:--move|branch:--force|branch:--set-upstream*|branch:--unset-upstream|branch:--edit-description)
+                deny "mutating git branch blocked." ;;
+              worktree:list|worktree:-*) ;;
+              worktree:*) deny "mutating git worktree blocked (use fleet-task.sh)." ;;
+            esac
+          done
           continue ;;
         *)
           # ALLOW spans several lines; flatten it or a word at a line edge is
