@@ -24,16 +24,15 @@ kind="$(cfg kind)"; model="$(cfg model)"; effort="$(cfg effort)"; extra="$(cfg f
 [ -n "$kind" ] || die "kind missing in config.md"
 
 case "$kind" in
-  pi)     [ -n "$model" ] && [ -n "$effort" ] || die "pi needs model and effort in config.md"
-          set -- --model "$model:$effort" ;;
-  codex)  [ -n "$model" ] && [ -n "$effort" ] || die "codex needs model and effort in config.md"
-          set -- -m "$model" -c "model_reasoning_effort=$effort" ;;
-  grok)   [ -n "$model" ] && [ -n "$effort" ] || die "grok needs model and effort in config.md"
-          set -- -m "$model" --reasoning-effort "$effort" ;;
-  claude) [ -n "$model" ] && [ -n "$effort" ] || die "claude needs model and effort in config.md"
-          set -- --model "$model" --effort "$effort" ;;
-  *)      [ -n "$model" ] && die "unknown kind '$kind': put its model/effort flags in 'flags:' instead of 'model:'"
-          set -- ;;
+  pi|codex|grok|claude) [ -n "$model" ] && [ -n "$effort" ] || die "$kind needs model and effort in config.md" ;;
+  *) [ -z "$model" ] || die "unknown kind '$kind': put its model/effort flags in 'flags:' instead of 'model:'" ;;
+esac
+case "$kind" in
+  pi)     set -- --model "$model:$effort" ;;
+  codex)  set -- -m "$model" -c "model_reasoning_effort=$effort" ;;
+  grok)   set -- -m "$model" --reasoning-effort "$effort" ;;
+  claude) set -- --model "$model" --effort "$effort" ;;
+  *)      set -- ;;
 esac
 
 name="fw-$id"
@@ -56,17 +55,13 @@ until out="$(herdr agent start "$name" --kind "$kind" --pane "$pane" -- "$@" $ex
   fi
   sleep 1
 done
-printf '%s\n' "$out"
 # A failed prompt leaves a started agent with no brief; close the tab we opened
 # rather than stranding it (set -e would otherwise abort with the tab live).
 herdr agent prompt "$name" "$(cat "$brief")" || {
   herdr tab close "$tab" >/dev/null 2>&1 || true
   die "agent prompt failed — tab $tab closed, row left queued"
 }
-# pid recorded so teardown / 'fleet off' can stop the watcher before its agent
-# disappears (a watcher outliving its agent fires a phantom FLEET-EVENT)
-nohup bash "$sdir/fleet-watch.sh" "$id" "$HERDR_PANE_ID" >/dev/null 2>&1 &
-echo $! > "$fleet/$id.watch.pid"
+sh "$sdir/fleet-task.sh" watch "$id" >/dev/null
 sh "$sdir/fleet-task.sh" tab "$id" "$tab" >/dev/null
 sh "$sdir/fleet-task.sh" status "$id" dispatched >/dev/null
 echo "fleet-dispatch: $id -> $kind in tab $tab (brief sent, watcher armed)"
