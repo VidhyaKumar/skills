@@ -65,7 +65,7 @@ test_concurrent_status() {
     awk -F'|' -v OFS='|' '
       /^\|/ {
         s=$2; gsub(/^[ \t]+|[ \t]+$/,"",s)
-        if (s=="alpha" || s=="bravo") $5=" queued "
+        if (s=="alpha" || s=="bravo") $4=" queued "
       }
       { print }
     ' "$tasks" > "$tasks.reset" && mv "$tasks.reset" "$tasks"
@@ -332,6 +332,9 @@ test_guard_bash_allowlist_denies() {
     'git checkout -- src/a' \
     'git branch -D main' \
     'git worktree add /tmp/x' \
+    'git worktree remove /tmp/x' \
+    'git branch -m main other' \
+    'git branch --set-upstream-to=origin/main' \
     'echo $(rm -rf src)' \
     'echo `rm -rf src`' \
     'sed -i "" s/a/b/ src/a' \
@@ -352,7 +355,10 @@ test_guard_bash_allowlist_denies() {
     'less src/a' \
     'grep "a|b" src/a; rm -rf src' \
     'echo "x;rm -rf src" | bash' \
-    'bash -c "rm -rf src; ls"'
+    'bash -c "rm -rf src; ls"' \
+    'echo "rm -rf src" > /tmp/x.sh; sh /tmp/x.sh' \
+    'sh /tmp/fleet-x.sh' \
+    'bash .fleet/fleet-evil.sh'
   bad=""
   for c in "$@"; do
     guard_bash "$repo" "$c"
@@ -381,7 +387,11 @@ test_guard_bash_allowlist_permits() {
     'cat .fleet/tasks.md' \
     'grep -n alpha .fleet/tasks.md | head -5' \
     'herdr agent list' \
-    "\"$scripts_dir/fleet-mode.sh\" on" \
+    "\"$scripts_dir/fleet-task.sh\" on" \
+    "\"$scripts_dir/fleet-task.sh\" watch alpha" \
+    'git branch --merged main' \
+    'git diff worktree other' 'git -C . log worktree main' \
+    'git worktree list --porcelain' \
     "sh \"$scripts_dir/fleet-task.sh\" status alpha working" \
     'echo hi > /dev/null' \
     'echo hi > .fleet/note.md' \
@@ -496,6 +506,7 @@ test_teardown_refuses_before_destroying() {
   [ -d "$dir" ] && bad="$bad worktree_left"
   git -C "$repo" show-ref --verify --quiet refs/heads/fleet/keep-me \
     && bad="$bad branch_left"
+  [ -z "$(row_status "$repo/.fleet/tasks.md" keep-me)" ] || bad="$bad row_left"
 
   if [ -z "$bad" ]; then
     pass "$name"
@@ -531,6 +542,68 @@ test_teardown_stops_watcher_by_identity() {
   fi
 }
 
+test_on_off_lifecycle() {
+  name="fleet-task.sh on refuses outside herdr, arms with HERDR_ENV=1, off keeps live rows"
+  make_repo
+  repo="$REPO"
+  rm -rf "$repo/.fleet"
+  cd "$repo" || exit 1
+  bad=""
+  if env -u HERDR_ENV sh "$task_sh" on >/dev/null 2>&1; then bad="$bad on_without_herdr_succeeded"; fi
+  [ -f "$repo/.fleet/active" ] && bad="$bad armed_without_herdr"
+  HERDR_ENV=1 sh "$task_sh" on >/dev/null 2>"$tmp_root/on.err" || bad="$bad on_failed"
+  [ -f "$repo/.fleet/active" ] || bad="$bad not_armed"
+  [ -f "$repo/.fleet/tasks.md" ] || bad="$bad no_tasks"
+  grep -qx '\.fleet/' "$repo/.gitignore" || bad="$bad no_gitignore"
+  append_row "$repo/.fleet/tasks.md" live ship working fleet/live
+  sh "$task_sh" off >/dev/null 2>&1 || bad="$bad off_failed"
+  [ -f "$repo/.fleet/active" ] && bad="$bad still_armed"
+  [ "$(row_status "$repo/.fleet/tasks.md" live)" = working ] || bad="$bad live_row_lost"
+  if [ -z "$bad" ]; then
+    pass "$name"
+  else
+    fail "$name ($bad)"
+  fi
+}
+
+test_watch_arms_and_replaces() {
+  name="fleet-task.sh watch records a live watcher pid and replaces a previous one"
+  make_repo
+  repo="$REPO"
+  append_row "$repo/.fleet/tasks.md" alpha scout dispatched -
+  log="$tmp_root/herdr.watchcmd.log"
+  : > "$log"
+  install_herdr "$tmp_root/bin" "$log" 1
+  # Make the mock's 'agent wait' block so the first watcher is still alive
+  # when the second one replaces it.
+  cat > "$tmp_root/bin/herdr" <<'MOCK'
+#!/bin/sh
+case "$1 $2" in "agent wait") sleep 30 ;; esac
+printf '%s\n' '{"result":{}}'
+MOCK
+  chmod +x "$tmp_root/bin/herdr"
+  export PATH="$tmp_root/bin:$PATH"
+  export HERDR_PANE_ID=pane-mgr
+  cd "$repo" || exit 1
+  bad=""
+  if env -u HERDR_PANE_ID sh "$task_sh" watch alpha >/dev/null 2>&1; then bad="$bad armed_without_pane"; fi
+  sh "$task_sh" watch alpha >/dev/null 2>"$tmp_root/watch1.err" || bad="$bad watch_failed"
+  pid1="$(cat "$repo/.fleet/alpha.watch.pid" 2>/dev/null || true)"
+  sh "$task_sh" watch alpha >/dev/null 2>&1 || bad="$bad rearm_failed"
+  pid2="$(cat "$repo/.fleet/alpha.watch.pid" 2>/dev/null || true)"
+  [ -n "$pid1" ] && [ -n "$pid2" ] && [ "$pid1" != "$pid2" ] || bad="$bad pidfile($pid1,$pid2)"
+  sleep 1
+  kill -0 "$pid1" 2>/dev/null && bad="$bad first_watcher_alive"
+  ps -p "$pid2" -o command= 2>/dev/null | grep -q fleet-watch || bad="$bad second_not_watcher"
+  kill "$pid2" 2>/dev/null || true
+  if [ -z "$bad" ]; then
+    pass "$name"
+  else
+    fail "$name ($bad)"
+  fi
+}
+
+
 test_stale_lock_dead_pid
 test_concurrent_status
 test_teardown_force_branch
@@ -544,6 +617,8 @@ test_guard_bash_allowlist_permits
 test_guard_fleet_write_through_symlinked_cwd
 test_teardown_refuses_before_destroying
 test_teardown_stops_watcher_by_identity
+test_on_off_lifecycle
+test_watch_arms_and_replaces
 
 echo "---"
 echo "$pass_count passed, $fail_count failed"

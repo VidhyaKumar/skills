@@ -55,15 +55,15 @@ make_repo() {
   git -C "$REPO" commit -qm seed >/dev/null
   mkdir -p "$REPO/.fleet"
   printf '%s\n' \
-    '| id | shape | fleet-worker | status | tab | branch | base | updated |' \
-    '| --- | --- | --- | --- | --- | --- | --- | --- |' \
+    '| id | shape | status | tab | branch | base | updated |' \
+    '| --- | --- | --- | --- | --- | --- | --- |' \
     > "$REPO/.fleet/tasks.md"
   printf '%s\n' 'kind: pi' 'model: test-model' 'effort: high' > "$REPO/.fleet/config.md"
 }
 
 append_row() {
   # append_row <tasks.md> <id> <shape> <status> <branch>
-  printf '| %s | %s | pi | %s | - | %s | main | 2026-01-01T00:00Z |\n' \
+  printf '| %s | %s | %s | - | %s | main | 2026-01-01T00:00Z |\n' \
     "$2" "$3" "$4" "$5" >> "$1"
 }
 
@@ -72,7 +72,7 @@ row_status() {
   awk -F'|' -v id="$2" '
     /^\|/ {
       s=$2; gsub(/^[ \t]+|[ \t]+$/,"",s)
-      if (s==id) { v=$5; gsub(/^[ \t]+|[ \t]+$/,"",v); print v; exit }
+      if (s==id) { v=$4; gsub(/^[ \t]+|[ \t]+$/,"",v); print v; exit }
     }' "$1"
 }
 
