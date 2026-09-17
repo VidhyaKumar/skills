@@ -6,25 +6,22 @@ disable-model-invocation: true
 
 # Commit Staged
 
-Use this skill only when the user explicitly wants the already staged changes committed without staging anything else.
-
 ## Workflow
 
-1. Inspect staged changes with `git diff --cached`.
-2. Confirm there is at least one staged change. If not, say so and stop.
-3. Use recent commits on the current branch as style reference.
-4. Produce the message with the `caveman-commit` skill, using its output as-is; only if it is unavailable, use the fallback format below. Match the staged diff only.
-5. Execute the commit without staging or modifying additional files.
+1. Inspect `git diff --cached`. If nothing is staged, say so and stop.
+2. Use recent commits on the current branch as style reference and prepare the message using Commit message below.
+3. Show the exact message (including any body) and included staged files or hunks. Flag unrelated work in the staged set. Then explicitly ask for approval and wait for the user's reply.
+4. After approval, commit with the approved message.
 
 ## Constraints
 
-- Never stage extra files.
-- Never widen the commit scope beyond what is already staged.
-- If the staged set mixes unrelated work, call that out before committing.
+- Commit only the existing staged changes; never stage or modify additional files.
+- Invoking this skill alone is not approval.
+- If the proposed scope or message changes, show the revised proposal and obtain fresh approval before committing it.
 
 ## Commit message
 
-Fallback only. Use this format when `caveman-commit` is not installed — and check the full set of skills, including plugins and extensions, before concluding it is unavailable.
+Use `caveman-commit` and its output as-is. Check all available skills, including plugins and extensions; only if unavailable, use this Conventional Commits fallback:
 
 ```text
 <type>(<scope>): <description>

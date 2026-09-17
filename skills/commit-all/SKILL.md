@@ -6,21 +6,20 @@ disable-model-invocation: true
 
 # Commit All
 
-Use this skill only when the user explicitly wants all current changes grouped into multiple logical commits.
-
 ## Gather context
 
-- Read the full working tree, not just staged files.
 - Inspect modified, staged, and untracked files before proposing commit boundaries.
 - Use recent commit history on the current branch as style reference.
 
 ## Workflow
 
 1. If there are no changes, say so and stop.
-2. Propose a plan that groups files into atomic commits (see Grouping rules below), each with a short rationale.
-3. Wait for user confirmation or edits to the grouping.
-4. After confirmation, unstage everything with `git reset HEAD`.
-5. For each approved group: stage it explicitly, produce its message with the `caveman-commit` skill (use its output as-is; fall back to the format below only if unavailable), and commit — one group at a time.
+2. Group files into atomic commits (see Grouping rules) and prepare messages using Commit message below.
+3. Output a numbered list in execution order, showing each exact message (including any body), included files or hunks, and a short rationale. Then explicitly ask for approval and wait for the user's reply.
+4. After approval, unstage everything with `git reset HEAD`.
+5. Stage and commit each approved group explicitly, one at a time, using its approved message.
+
+Invoking this skill alone is not approval. If a proposed scope or message changes, show the revised proposal and obtain fresh approval before committing it.
 
 ## Grouping rules
 
@@ -32,7 +31,7 @@ Use this skill only when the user explicitly wants all current changes grouped i
 
 ## Commit message
 
-Fallback only. Use this format when `caveman-commit` is not installed — and check the full set of skills, including plugins and extensions, before concluding it is unavailable. Conventional Commits:
+Use `caveman-commit` and its output as-is. Check all available skills, including plugins and extensions; only if unavailable, use this Conventional Commits fallback:
 
 ```text
 <type>(<scope>): <description>
