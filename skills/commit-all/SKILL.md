@@ -15,9 +15,9 @@ disable-model-invocation: true
 
 1. If there are no changes, say so and stop.
 2. Group files into atomic commits (see Grouping rules) and prepare messages using Commit message below.
-3. Output a numbered list in execution order, showing each exact message (including any body), included files or hunks, and a short rationale. Then explicitly ask for approval and wait for the user's reply.
-4. After approval, unstage everything with `git reset HEAD`.
-5. Stage and commit each approved group explicitly, one at a time, using its approved message.
+3. Send a normal user-visible response with a numbered list of intended commits in execution order. For each, show the exact message in a code block (including any body), included files or hunks, and a short rationale. Internal reasoning, tool output, and question-tool options do not count as showing the proposal.
+4. Only after that response, explicitly ask for approval and wait for the user's reply. Never call a question or approval tool before sending the complete proposal; if using one, send the proposal as a separate response first.
+5. After approval, unstage everything with `git reset HEAD`, then stage and commit each approved group explicitly, one at a time, using its approved message.
 
 Invoking this skill alone is not approval. If a proposed scope or message changes, show the revised proposal and obtain fresh approval before committing it.
 

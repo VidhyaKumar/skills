@@ -10,8 +10,9 @@ disable-model-invocation: true
 
 1. Inspect `git diff --cached`. If nothing is staged, say so and stop.
 2. Use recent commits on the current branch as style reference and prepare the message using Commit message below.
-3. Show the exact message (including any body) and included staged files or hunks. Flag unrelated work in the staged set. Then explicitly ask for approval and wait for the user's reply.
-4. After approval, commit with the approved message.
+3. Send a normal user-visible response showing the exact message in a code block (including any body) and included staged files or hunks. Flag unrelated work in the staged set. Internal reasoning, tool output, and question-tool options do not count as showing the proposal.
+4. Only after that response, explicitly ask for approval and wait for the user's reply. Never call a question or approval tool before sending the complete proposal; if using one, send the proposal as a separate response first.
+5. After approval, commit with the approved message.
 
 ## Constraints
 
